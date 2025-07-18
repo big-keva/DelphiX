@@ -1,4 +1,4 @@
-# include "indexer/static-contents.hpp"
+# include "../../indexer/static-contents.hpp"
 # include "override-entities.hpp"
 # include "static-entities.hpp"
 # include "dynamic-bitmap.hpp"
@@ -391,7 +391,7 @@ namespace static_ {
 
   // contents implementation
 
-  auto  Contents::Create( mtc::api<IStorage::ISerialized> serialized ) -> mtc::api<IContentsIndex>
+  auto  Index::Create( mtc::api<IStorage::ISerialized> serialized ) -> mtc::api<IContentsIndex>
   {
     if ( serialized->Entities() == nullptr )
       throw std::invalid_argument( "static_::ContentsIndex::Create() must not be called" );

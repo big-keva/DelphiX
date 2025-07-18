@@ -1,7 +1,7 @@
 # if !defined( __DelphiX_textAPI_word_break_hpp__ )
 # define __DelphiX_textAPI_word_break_hpp__
 # include "DOM-body.hpp"
-# include "slices.hpp"
+# include "../slices.hpp"
 # include <moonycode/chartype.h>
 
 namespace DelphiX {

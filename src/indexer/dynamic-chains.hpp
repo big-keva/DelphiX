@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_indexer_dynamic_chains_hxx__ )
 # define __DelphiX_src_indexer_dynamic_chains_hxx__
-# include "contents.hpp"
+# include "../../contents.hpp"
 # include "dynamic-chains-ringbuffer.hpp"
 # include "dynamic-bitmap.hpp"
 # include <mtc/recursive_shared_mutex.hpp>

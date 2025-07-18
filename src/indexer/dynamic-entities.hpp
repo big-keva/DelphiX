@@ -1,8 +1,8 @@
 # if !defined( __DelphiX_src_indexer_dynamic_entities_hxx__ )
 # define __DelphiX_src_indexer_dynamic_entities_hxx__
-# include "contents.hpp"
-# include "exceptions.hpp"
-# include "primes.hpp"
+# include "../../contents.hpp"
+# include "../../exceptions.hpp"
+# include "../../primes.hpp"
 # include <mtc/ptrpatch.h>
 # include <mtc/wcsstr.h>
 # include <type_traits>

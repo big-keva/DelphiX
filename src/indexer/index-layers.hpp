@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_indexer_index_layers_hpp__ )
 # define __DelphiX_src_indexer_index_layers_hpp__
-# include "contents.hpp"
+# include "../../contents.hpp"
 # include "dynamic-bitmap.hpp"
 
 namespace DelphiX {

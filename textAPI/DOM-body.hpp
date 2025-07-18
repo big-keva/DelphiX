@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_textAPI_DOM_body_hpp__ )
 # define __DelphiX_textAPI_DOM_body_hpp__
-# include "text-api.hpp"
+# include "../text-api.hpp"
 
 namespace DelphiX {
 namespace textAPI {

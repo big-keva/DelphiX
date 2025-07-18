@@ -4,17 +4,27 @@ project(DelphiX)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 
-include_directories(
-	./
-	third-party)
-
 add_compile_options(-mfpmath=sse -fstack-protector-all -g
 	-W -Wall -Wextra -Wcast-align -pedantic -Wfloat-equal -Wpointer-arith -Wformat-security
 	-Wmissing-format-attribute -Wformat=1 -Wwrite-strings -Wcast-align -Wno-long-long
 	-Woverloaded-virtual -Wno-suggest-attribute=format)
 
-add_subdirectory(third-party/moonycode)
-add_subdirectory(third-party/mtc)
+set(INCLUDE_DIRECTORIES ${INCLUDE_DIRECTORIES}
+		${CMAKE_CURRENT_SOURCE_DIR}
+		${CMAKE_CURRENT_SOURCE_DIR}/contrib)
+
+
+
+
+message(STATUS "Include directories: " ${INCLUDE_DIRECTORIES})
+
+if (NOT TARGET moonycode)
+	add_subdirectory(contrib/moonycode)
+endif()
+
+if (NOT TARGET mtc)
+	add_subdirectory(contrib/mtc)
+endif()
 
 add_library(DelphiX
 	src/contents.cpp
@@ -43,4 +53,9 @@ add_library(DelphiX
 	src/textAPI/load-as-json.cpp
 	src/textAPI/load-as-tags.cpp)
 
+# target_include_directories(DelphiX PUBLIC
+#		${CMAKE_CURRENT_SOURCE_DIR}
+#		${CMAKE_CURRENT_SOURCE_DIR}/contrib)
+
 add_subdirectory(tests)
+add_subdirectory(utils)

@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_indexer_merger_contents_hxx__ )
 # define __DelphiX_src_indexer_merger_contents_hxx__
-# include "contents.hpp"
+# include "../../contents.hpp"
 # include "notify-events.hpp"
 
 namespace DelphiX {

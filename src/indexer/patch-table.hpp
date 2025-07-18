@@ -1,6 +1,6 @@
-# include "contents.hpp"
-# include "slices.hpp"
-# include "primes.hpp"
+# include "../../contents.hpp"
+# include "../../slices.hpp"
+# include "../../primes.hpp"
 # include <mtc/ptrpatch.h>
 # include <string_view>
 # include <cstring>

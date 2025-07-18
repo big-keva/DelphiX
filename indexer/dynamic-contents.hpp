@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_indexer_dynamic_contents_hpp__ )
 # define __DelphiX_indexer_dynamic_contents_hpp__
-# include "contents.hpp"
+# include "../contents.hpp"
 
 namespace DelphiX {
 namespace indexer {
@@ -16,7 +16,7 @@ namespace dynamic {
     auto  SetMaxAllocate( uint32_t value ) -> Settings& {  maxAllocate = value; return *this;  }
   };
 
-  class Contents
+  class Index
   {
     using Storage = mtc::api<IStorage::IIndexStore>;
 
@@ -24,8 +24,8 @@ namespace dynamic {
     Storage   storageSink;
 
   public:
-    auto  Set( const Settings& ) -> Contents&;
-    auto  Set( mtc::api<IStorage::IIndexStore> ) -> Contents&;
+    auto  Set( const Settings& ) -> Index&;
+    auto  Set( mtc::api<IStorage::IIndexStore> ) -> Index&;
 
   public:
     auto  Create() const -> mtc::api<IContentsIndex>;

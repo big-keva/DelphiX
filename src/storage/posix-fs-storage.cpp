@@ -1,4 +1,4 @@
-# include "storage/posix-fs.hpp"
+# include "../../storage/posix-fs.hpp"
 # include <mtc/directory.h>
 # include <algorithm>
 
@@ -102,7 +102,5 @@ namespace posixFS {
   {
     return new Storage( policies );
   }
-
-
 
 }}}

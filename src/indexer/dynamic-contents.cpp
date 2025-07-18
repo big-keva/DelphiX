@@ -1,7 +1,7 @@
-# include "indexer/dynamic-contents.hpp"
+# include "../../indexer/dynamic-contents.hpp"
 # include "dynamic-entities.hpp"
 # include "dynamic-chains.hpp"
-# include "exceptions.hpp"
+# include "../../exceptions.hpp"
 # include <mtc/arena.hpp>
 
 namespace DelphiX {
@@ -248,13 +248,13 @@ namespace dynamic {
 
   // contents implementation
 
-  auto  Contents::Set( const Settings& options ) -> Contents&
+  auto  Index::Set( const Settings& options ) -> Index&
     {  return openOptions = options, *this;  }
 
-  auto  Contents::Set( mtc::api<IStorage::IIndexStore> storage ) -> Contents&
+  auto  Index::Set( mtc::api<IStorage::IIndexStore> storage ) -> Index&
     {  return storageSink = storage, *this;  }
 
-  auto  Contents::Create() const -> mtc::api<IContentsIndex>
+  auto  Index::Create() const -> mtc::api<IContentsIndex>
     {  return new ContentsIndex( openOptions.maxEntities, openOptions.maxAllocate, storageSink );  }
 
 }}}

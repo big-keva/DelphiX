@@ -1,10 +1,10 @@
-# include "../src/indexes/contents-index-fusion.hxx"
-# include "indexes/static-contents.hpp"
+# include "src/indexer/contents-index-merger.hpp"
+# include "indexer/static-contents.hpp"
 # include "storage/posix-fs.hpp"
 # include <vector>
 # include <string>
 
-using namespace palmira;
+using namespace DelphiX;
 
 int   MergeIndices(
   mtc::api<IStorage::IIndexStore> output,
@@ -12,7 +12,7 @@ int   MergeIndices(
 {
   try
   {
-    index::fusion::ContentsMerger()
+    indexer::fusion::ContentsMerger()
       .Set( output )
       .Set( sources )();
     output->Commit();
@@ -35,8 +35,7 @@ int   MergeIndices(
   {
     auto  srcSerialized = storage::posixFS::OpenSerial(
       storage::posixFS::StoragePolicies::OpenInstance( next ) );
-    auto  contentsIndex = index::static_::Contents().Create(
-      srcSerialized );
+    auto  contentsIndex = indexer::static_::Contents().Create( srcSerialized );
 
     indices.push_back( contentsIndex );
   }

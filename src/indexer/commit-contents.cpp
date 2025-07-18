@@ -1,4 +1,4 @@
-# include "indexer/static-contents.hpp"
+# include "../../indexer/static-contents.hpp"
 # include "commit-contents.hpp"
 # include "override-entities.hpp"
 # include "dynamic-bitmap.hpp"
@@ -107,7 +107,7 @@ namespace commit  {
     // serialize accumulated changes, dispose old index and open new static
       hpatch.Commit( serial = target );
         source = nullptr;
-      output = static_::Contents().Create( serial = target );
+      output = static_::Index().Create( serial = target );
 
     // notify commit finished
       s_wait.notify_all();

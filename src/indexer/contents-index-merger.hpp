@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_indexer_merger_hpp__ )
 # define __DelphiX_src_indexer_merger_hpp__
-# include "contents.hpp"
+# include "../../contents.hpp"
 # include <functional>
 
 namespace DelphiX {

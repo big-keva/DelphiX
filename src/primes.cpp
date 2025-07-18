@@ -1,4 +1,4 @@
-# include "primes.hpp"
+# include "../primes.hpp"
 
 namespace DelphiX {
 

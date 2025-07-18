@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_textAPI_DOM_load_hpp__ )
 # define __DelphiX_textAPI_DOM_load_hpp__
-# include "text-api.hpp"
+# include "../text-api.hpp"
 # include <mtc/serialize.h>
 # include <functional>
 # include <stdexcept>

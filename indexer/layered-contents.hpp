@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_indexer_layered_contents_hpp__ )
 # define __DelphiX_indexer_layered_contents_hpp__
-# include "contents.hpp"
+# include "../contents.hpp"
 # include "dynamic-contents.hpp"
 # include <functional>
 

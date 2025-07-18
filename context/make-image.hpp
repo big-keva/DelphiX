@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_context_make_image_hpp__ )
 # define __DelphiX_context_make_image_hpp__
-# include "lang-api.hpp"
+# include "../lang-api.hpp"
 
 namespace DelphiX {
 namespace context {

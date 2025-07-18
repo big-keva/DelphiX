@@ -1,6 +1,6 @@
 # include "merger-contents.hpp"
 # include "contents-index-merger.hpp"
-# include "indexer/static-contents.hpp"
+# include "../../indexer/static-contents.hpp"
 # include "override-entities.hpp"
 # include "index-layers.hpp"
 # include "patch-table.hpp"
@@ -118,7 +118,7 @@ namespace fusion  {
 
     // serialize accumulated changes, dispose old index and open new static
       hpatch.Commit( serial = target );
-      output = static_::Contents().Create( serial = target );
+      output = static_::Index().Create( serial = target );
 
     // notify merger finished
       s_wait.notify_all();
@@ -293,7 +293,7 @@ namespace fusion  {
     return output;
   }
 
-  // Contents implementation
+  // Index implementation
 
   auto  Contents::Add( const mtc::api<IContentsIndex> i ) -> Contents&
   {

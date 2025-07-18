@@ -1,12 +1,12 @@
-# include "contents.hpp"
-# include "lang-api.hpp"
-# include "textAPI/word-break.hpp"
-# include "context/index-keys.hpp"
-# include "context/index-type.hpp"
+# include "../../contents.hpp"
+# include "../../lang-api.hpp"
+# include "../../textAPI/word-break.hpp"
+# include "../../context/index-keys.hpp"
+# include "../../context/index-type.hpp"
+# include "../../context/make-image.hpp"
 # include <mtc/arbitrarymap.h>
 # include <mtc/arena.hpp>
 # include <memory>
-#include <context/make-image.hpp>
 
 namespace DelphiX {
 namespace context {

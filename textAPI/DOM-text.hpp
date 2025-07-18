@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_textAPI_DOM_text_hpp__ )
 # define __DelphiX_textAPI_DOM_text_hpp__
-# include "text-api.hpp"
+# include "../text-api.hpp"
 # include <moonycode/codes.h>
 # include <mtc/serialize.h>
 # include <mtc/wcsstr.h>

@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_context_decomposer_hpp__ )
 # define __DelphiX_context_decomposer_hpp__
-# include "lang-api.hpp"
+# include "../lang-api.hpp"
 # include <functional>
 
 namespace DelphiX {

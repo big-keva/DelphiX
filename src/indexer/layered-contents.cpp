@@ -1,7 +1,7 @@
-# include "indexer/layered-contents.hpp"
-# include "indexer/static-contents.hpp"
-# include "indexer/dynamic-contents.hpp"
-# include "exceptions.hpp"
+# include "../../indexer/layered-contents.hpp"
+# include "../../indexer/static-contents.hpp"
+# include "../../indexer/dynamic-contents.hpp"
+# include "../../exceptions.hpp"
 # include "commit-contents.hpp"
 # include "merger-contents.hpp"
 # include "index-layers.hpp"
@@ -92,12 +92,12 @@ namespace layered {
   // check if has any sources
     if ( sources != nullptr )
       for ( auto serial = sources->Get(); serial != nullptr; serial = sources->Get() )
-        addContents( static_::Contents().Create( serial ) );
+        addContents( static_::Index().Create( serial ) );
 
   // add dynamic index to the end if possible
     if ( dynamic != nullptr )
     {
-      addContents( dynamic::Contents()
+      addContents( dynamic::Index()
         .Set( dynamic )
         .Set( dynSet ).Create() );
       rdOnly = false;
@@ -190,7 +190,7 @@ namespace layered {
               evEvent.notify_one();
             } );
 
-          layers.emplace_back( layers.back().uUpper + 1, dynamic::Contents()
+          layers.emplace_back( layers.back().uUpper + 1, dynamic::Index()
             .Set( dynSet )
             .Set( istore->CreateStore() ).Create() );
           layers.back().uUpper = (uint32_t)-1;

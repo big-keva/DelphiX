@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_indexer_override_entities_hxx__ )
 # define __DelphiX_src_indexer_override_entities_hxx__
-# include "contents.hpp"
+# include "../../contents.hpp"
 # include "dynamic-bitmap.hpp"
 
 namespace DelphiX {
