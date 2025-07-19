@@ -1,5 +1,5 @@
-# include "indexer/layered-contents.hpp"
-# include "storage/posix-fs.hpp"
+# include "../../indexer/layered-contents.hpp"
+# include "../../storage/posix-fs.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 # include <thread>

@@ -1,7 +1,7 @@
-# include "textAPI/DOM-text.hpp"
-# include "textAPI/DOM-dump.hpp"
-# include "textAPI/DOM-load.hpp"
-# include "textAPI/word-break.hpp"
+# include "../../textAPI/DOM-text.hpp"
+# include "../../textAPI/DOM-dump.hpp"
+# include "../../textAPI/DOM-load.hpp"
+# include "../../textAPI/word-break.hpp"
 # include <moonycode/codes.h>
 # include <mtc/serialize.h>
 # include <mtc/arena.hpp>

@@ -1,4 +1,4 @@
-# include "src/indexer/dynamic-chains-ringbuffer.hpp"
+# include "../../src/indexer/dynamic-chains-ringbuffer.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <chrono>
 # include <thread>

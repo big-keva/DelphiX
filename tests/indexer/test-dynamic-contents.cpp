@@ -1,6 +1,6 @@
-# include "indexer/dynamic-contents.hpp"
-# include "storage/posix-fs.hpp"
-# include "src/indexer/dynamic-entities.hpp"
+# include "../../indexer/dynamic-contents.hpp"
+# include "../../storage/posix-fs.hpp"
+# include "../../src/indexer/dynamic-entities.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -39,7 +39,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
 
       SECTION( "dynamic::contents index may be created" )
       {
-        REQUIRE_NOTHROW( contents = dynamic::Contents().Create() );
+        REQUIRE_NOTHROW( contents = dynamic::Index().Create() );
 
         SECTION( "entities may be inserted to the contents index" )
         {
@@ -148,7 +148,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
       }
       SECTION( "dynamic::contents may hold extras for entities" )
       {
-        REQUIRE_NOTHROW( contents = dynamic::Contents().Create() );
+        REQUIRE_NOTHROW( contents = dynamic::Index().Create() );
 
         if ( REQUIRE( contents != nullptr ) )
         {
@@ -193,7 +193,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
       }
       SECTION( "dynamic::contents may be created with entity count limitation" )
       {
-        REQUIRE_NOTHROW( contents = dynamic::Contents()
+        REQUIRE_NOTHROW( contents = dynamic::Index()
           .Set( dynamic::Settings()
             .SetMaxEntities( 3 ) )
           .Create() );
@@ -210,7 +210,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
       }
       SECTION( "dynamic::contents index may be created with size count limitation" )
       {
-        REQUIRE_NOTHROW( contents = dynamic::Contents()
+        REQUIRE_NOTHROW( contents = dynamic::Index()
           .Set( dynamic::Settings()
             .SetMaxEntities( 3 )
             .SetMaxAllocate( 168880 ) )
@@ -229,7 +229,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
         auto  sink = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) );
         auto  well = mtc::api<IStorage::ISerialized>();
 
-        REQUIRE_NOTHROW( contents = dynamic::Contents()
+        REQUIRE_NOTHROW( contents = dynamic::Index()
           .Set( sink )
           .Create() );
 

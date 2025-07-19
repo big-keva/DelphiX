@@ -1,7 +1,7 @@
-# include "indexer/dynamic-contents.hpp"
-# include "indexer/static-contents.hpp"
-# include "src/indexer/dynamic-entities.hpp"
-# include "storage/posix-fs.hpp"
+# include "../../indexer/dynamic-contents.hpp"
+# include "../../indexer/static-contents.hpp"
+# include "../../src/indexer/dynamic-entities.hpp"
+# include "../../storage/posix-fs.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -40,7 +40,7 @@ TestItEasy::RegisterFunc  static_contents( []()
         auto  contents = mtc::api<IContentsIndex>();
         auto  serialized = mtc::api<IStorage::ISerialized>();
 
-        REQUIRE_NOTHROW( contents = dynamic::Contents()
+        REQUIRE_NOTHROW( contents = dynamic::Index()
           .Set( storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) ) ).Create() );
         REQUIRE_NOTHROW( contents->SetEntity( "aaa", KeyValues( {
             { "aaa", 1161 },
@@ -57,7 +57,7 @@ TestItEasy::RegisterFunc  static_contents( []()
         REQUIRE_NOTHROW( contents->DelEntity( "bbb" ) );
         REQUIRE_NOTHROW( serialized = contents->Commit() );
 
-        if ( REQUIRE_NOTHROW( contents = static_::Contents().Create( serialized ) )
+        if ( REQUIRE_NOTHROW( contents = static_::Index().Create( serialized ) )
           && REQUIRE( contents != nullptr ) )
         {
           mtc::api<IContentsIndex::IEntities>  entities;

@@ -1,5 +1,5 @@
-# include "src/indexer/static-entities.hpp"
-# include "src/indexer/dynamic-entities.hpp"
+# include "../../src/indexer/static-entities.hpp"
+# include "../../src/indexer/dynamic-entities.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/byteBuffer.h>
 # include <mtc/arena.hpp>

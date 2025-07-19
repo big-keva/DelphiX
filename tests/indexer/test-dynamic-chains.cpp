@@ -1,4 +1,4 @@
-# include "src/indexer/dynamic-chains.hpp"
+# include "../../src/indexer/dynamic-chains.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/arena.hpp>
 # include <thread>

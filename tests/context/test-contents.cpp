@@ -1,9 +1,9 @@
-# include "context/decomposer.hpp"
-# include "context/make-image.hpp"
-# include "context/index-keys.hpp"
-# include "context/index-type.hpp"
-# include "textAPI/DOM-text.hpp"
-# include "textAPI/word-break.hpp"
+# include "../../context/decomposer.hpp"
+# include "../../context/make-image.hpp"
+# include "../../context/index-keys.hpp"
+# include "../../context/index-type.hpp"
+# include "../../textAPI/DOM-text.hpp"
+# include "../../textAPI/word-break.hpp"
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;

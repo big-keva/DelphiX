@@ -1,7 +1,7 @@
-# include "src/indexer/index-layers.hpp"
-# include "storage/posix-fs.hpp"
-# include "indexer/dynamic-contents.hpp"
-# include "indexer/static-contents.hpp"
+# include "../../src/indexer/index-layers.hpp"
+# include "../../storage/posix-fs.hpp"
+# include "../../indexer/dynamic-contents.hpp"
+# include "../../indexer/static-contents.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -34,7 +34,7 @@ public:
 auto  CreateDynamicIndex( const mtc::zmap& ix ) -> mtc::api<IContentsIndex>
 {
   auto  pstore = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) );
-  auto  pindex = dynamic::Contents()
+  auto  pindex = dynamic::Index()
     .Set( dynamic::Settings()
       .SetMaxEntities( 1024 )
       .SetMaxAllocate( 2 * 1024 * 1024 ) )
@@ -51,7 +51,7 @@ auto  CreateStaticIndex( const mtc::zmap& ix ) -> mtc::api<IContentsIndex>
 {
   auto  serial = CreateDynamicIndex( ix )->Commit();
 
-  return static_::Contents().Create( serial );
+  return static_::Index().Create( serial );
 }
 
 TestItEasy::RegisterFunc  index_layers( []()
