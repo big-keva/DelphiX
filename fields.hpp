@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_fields_hpp__ )
 # define __DelphiX_fields_hpp__
-# include "../slices.hpp"
+# include "slices.hpp"
 
 namespace DelphiX {
 
