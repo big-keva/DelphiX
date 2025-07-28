@@ -9,12 +9,14 @@ add_compile_options(-mfpmath=sse -fstack-protector-all -g
 	-Wmissing-format-attribute -Wformat=1 -Wwrite-strings -Wcast-align -Wno-long-long
 	-Woverloaded-virtual -Wno-suggest-attribute=format)
 
-set(INCLUDE_DIRECTORIES ${INCLUDE_DIRECTORIES}
-		${CMAKE_CURRENT_SOURCE_DIR}
-		${CMAKE_CURRENT_SOURCE_DIR}/contrib)
+if (SANITIZER_ENABLED)
+	add_compile_options(-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak)
+	add_link_options(-fsanitize=address)
+endif()
 
-
-
+include_directories(
+	./
+	contrib)
 
 message(STATUS "Include directories: " ${INCLUDE_DIRECTORIES})
 
@@ -30,9 +32,13 @@ add_library(DelphiX
 	src/contents.cpp
 	src/primes.cpp
 
-	src/context/decomposer.cpp
+	src/context/lemmatizer.cpp
 	src/context/index-keys.cpp
-	src/context/make-image.cpp
+	src/context/x-contents.cpp
+	src/context/fields-man.cpp
+	src/context/processor.cpp
+
+	src/enquote/compressor.cpp
 
 	src/indexer/commit-contents.cpp
 	src/indexer/contents-index-merger.cpp
@@ -57,5 +63,6 @@ add_library(DelphiX
 #		${CMAKE_CURRENT_SOURCE_DIR}
 #		${CMAKE_CURRENT_SOURCE_DIR}/contrib)
 
+add_subdirectory(addon)
 add_subdirectory(tests)
 add_subdirectory(utils)

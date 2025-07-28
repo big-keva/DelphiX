@@ -17,7 +17,7 @@ namespace DelphiX
     Slice( T* data, size_t size ):
       items( data ), count( size ) {}
   template <class Iterable>
-    Slice( const Iterable& coll ):
+    Slice( Iterable& coll ):
       items( coll.data() ), count( coll.size() )  {}
 
   public:
@@ -31,6 +31,9 @@ namespace DelphiX
 
     auto  at( size_t pos ) const -> T& {  return items[pos];  }
     auto  operator[]( size_t pos ) const -> T& {  return items[pos];  }
+
+    auto  front() const -> T&  {  return *items;  }
+    auto  back() const -> T&  {  return items[count - 1];  }
 
     int   compare( const Slice& ) const;
 

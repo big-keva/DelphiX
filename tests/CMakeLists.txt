@@ -5,9 +5,15 @@ endif()
 
 link_libraries(DelphiX mtc moonycode)
 
+add_executable(test-DelphiX-enquote
+	enquote/test-compressor.cpp
+	test-main.cpp)
+
 add_executable(test-DelphiX-context
 	context/test-key.cpp
 	context/test-contents.cpp
+	context/test-processor.cpp
+	context/test-fields-manager.cpp
 	test-main.cpp)
 
 add_executable(test-DelphiX-textAPI

@@ -12,10 +12,8 @@ namespace context {
 
       EntryCount = 1,     // simple serialized BM25 values
 
-      BinaryDump = 10,    // unspecified data dump
-
       EntryOrder = 11,    // diff-compressed entries preceded by length
-      FormsOrder = 12     // diff-compressed entries + form ids preceded by length
+      EntryForms = 12     // diff-compressed entries + form ids preceded by length
 
     };
   };

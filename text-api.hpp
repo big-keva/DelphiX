@@ -27,6 +27,9 @@ namespace textAPI {
     const widechar* pwsstr;
     uint32_t        offset;
     uint32_t        length;
+
+    auto  GetWideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
+
   };
 
   struct TextChunk
@@ -35,7 +38,6 @@ namespace textAPI {
     size_t      length;
     unsigned    encode;
 
-  public:
     auto  GetCharStr() const -> std::basic_string_view<char>;
     auto  GetWideStr() const -> std::basic_string_view<widechar>;
 
@@ -65,19 +67,29 @@ namespace textAPI {
 
   };
 
+  inline
+  bool  operator == ( const TextToken& t1, const TextToken& t2 )
+  {
+    if ( t1.uFlags == t2.uFlags && t1.length == t2.length )
+      for ( auto p1 = t1.pwsstr, p2 = t2.pwsstr, pe = p1 + t1.length; p1 != pe; ++p1, ++p2 )
+        if ( *p1 != *p2 )
+          return false;
+    return true;
+  }
+
   // TextChunk implementation
 
   inline  auto  TextChunk::GetCharStr() const -> std::basic_string_view<char>
   {
     if ( encode == unsigned(-1) )
-      throw std::logic_error( "invalid encoding" );
+      throw std::invalid_argument( "invalid encoding" );
     return { (const char*)strptr, length };
   }
 
   inline  auto  TextChunk::GetWideStr() const -> std::basic_string_view<widechar>
   {
     if ( encode != unsigned(-1) )
-      throw std::logic_error( "invalid encoding" );
+      throw std::invalid_argument( "invalid encoding" );
     return { (const widechar*)strptr, length };
   }
 

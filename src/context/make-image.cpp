@@ -13,7 +13,7 @@ namespace context {
 
   struct Elements
   {
-    virtual ~Elements() = default;
+    virtual      ~Elements() = default;
     virtual auto  BlockType() const -> unsigned = 0;
     virtual auto  GetBufLen() const -> size_t = 0;
     virtual auto  Serialize( char* ) const -> char* = 0;
@@ -27,14 +27,12 @@ namespace context {
 
   protected:
     static
-    auto  CreateKey( unsigned idl, uint32_t cls, const widechar* str, size_t len ) -> Key
-    {
-      return cls != 0 ? Key( idl, cls, str, len ) : Key( idl, str, len );
-    }
+    auto  NewKey( unsigned idl, uint32_t cls, const widechar* str, size_t len ) -> Key
+      {  return cls != 0 ? Key( idl, cls, str, len ) : Key( idl, str, len );  }
 
   public:
-    template <class Compressor, class ... Args>
-    void  AddRecord( const StrView&, const Args... );
+    template <class Compressor>
+    void  AddRecord( const StrView&, const typename Compressor::entry_type& );
 
     auto  get_allocator() -> mtc::Arena::allocator<char>  {  return memArena.get_allocator<char>();  }
 
@@ -86,6 +84,8 @@ namespace context {
   public:
     enum: unsigned {  objectType = typeId  };
 
+    using entry_type = Entry;
+
   public:
     Compressor( Alloc alloc ): std::vector<Entry, Alloc>( alloc )
     {
@@ -131,6 +131,8 @@ namespace context {
   public:
     enum: unsigned {  objectType = EntryBlockType::EntryCount };
 
+    using entry_type = struct{};
+
   template <class ... Args>
       EntryCounter( Args... ) {}
 
@@ -146,6 +148,8 @@ namespace context {
   public:
     enum: unsigned {  objectType = EntryBlockType::None };
 
+    using entry_type = struct{};
+
   template <class ... Args>
     EntryIgnored( Args... ) {}
 
@@ -158,8 +162,8 @@ namespace context {
 
   // Contents template implementation
 
-  template <class Compressor, class ... Args>
-  void  Contents::AddRecord( const StrView& key, const Args ... args )
+  template <class Compressor>
+  void  Contents::AddRecord( const StrView& key, const typename Compressor::entry_type& ent )
   {
     auto  pfound = keyToPos->Search( key.data(), key.size() );
 
@@ -172,7 +176,7 @@ namespace context {
     if ( (*pfound)->BlockType() != Compressor::objectType )
       throw std::logic_error( "block type mismatch" );
 
-    return ((Compressor*)(*pfound))->AddRecord( args... );
+    return ((Compressor*)(*pfound))->AddRecord( ent );
   }
 
   void  Contents::Enum( IContentsIndex::IIndexAPI* index ) const
@@ -224,7 +228,7 @@ namespace context {
       auto  key = Key( idl, lex );
 
       if ( cnt > 1 && *fms != 0xff )
-        return AddRecord<Compressor<EntryBlockType::FormsOrder, LongEntry, mtc::Arena::allocator<char>>>( StrView( key ), unsigned(pos), *fms );
+        return AddRecord<Compressor<EntryBlockType::EntryForms, LongEntry, mtc::Arena::allocator<char>>>( StrView( key ), { unsigned(pos), *fms } );
       else
         return AddRecord<Compressor<EntryBlockType::EntryOrder, MiniEntry, mtc::Arena::allocator<char>>>( key, pos );
     }
@@ -235,10 +239,10 @@ namespace context {
       size_t          len,
       uint32_t        cls, const uint8_t* fms, size_t cnt ) override
     {
-      auto  key = CreateKey( idl, cls, str, len );
+      auto  key = NewKey( idl, cls, str, len );
 
       if ( cnt > 1 && *fms != 0xff )
-        return AddRecord<Compressor<EntryBlockType::FormsOrder, LongEntry, mtc::Arena::allocator<char>>>( StrView( key ), unsigned(pos), *fms );
+        return AddRecord<Compressor<EntryBlockType::EntryForms, LongEntry, mtc::Arena::allocator<char>>>( StrView( key ), { unsigned(pos), *fms } );
       else
         return AddRecord<Compressor<EntryBlockType::EntryOrder, MiniEntry, mtc::Arena::allocator<char>>>( key, pos );
     }
@@ -256,7 +260,7 @@ namespace context {
     {
       (void)pos, (void)fms, (void)cnt;
 
-      return AddRecord<EntryCounter>( Key( idl, lex ) );
+      return AddRecord<EntryCounter>( Key( idl, lex ), {} );
     }
     void  AddStem(
       unsigned        pos,
@@ -267,7 +271,7 @@ namespace context {
     {
       (void)pos, (void)fms, (void)cnt;
 
-      return AddRecord<EntryCounter>( CreateKey( idl, cls, str, len ) );
+      return AddRecord<EntryCounter>( NewKey( idl, cls, str, len ), {} );
     }
   };
 
@@ -283,7 +287,7 @@ namespace context {
     {
       (void)pos, (void)fms, (void)cnt;
 
-      return AddRecord<EntryIgnored>( Key( idl, lex ) );
+      return AddRecord<EntryIgnored>( Key( idl, lex ), {} );
     }
     void  AddStem(
       unsigned        pos,
@@ -294,23 +298,24 @@ namespace context {
     {
       (void)pos, (void)fms, (void)cnt;
 
-      return AddRecord<EntryIgnored>( CreateKey( idl, cls, str, len ) );
+      return AddRecord<EntryIgnored>( NewKey( idl, cls, str, len ), {} );
     }
   };
 
-  auto  Lite::Create() -> mtc::api<IImage>
+  auto  CreateLite( FieldHandler* fields ) -> mtc::api<IImage>
   {
     return mtc::api<IImage>( new LiteContents() );
   }
 
-  auto  BM25::Create() -> mtc::api<IImage>
+  auto  CreateBM25( FieldHandler* fields ) -> mtc::api<IImage>
   {
     return mtc::api<IImage>( new BM25Contents() );
   }
 
-  auto  Rich::Create() -> mtc::api<IImage>
+  auto  CreateRich( FieldHandler* fields ) -> mtc::api<IImage>
   {
     return mtc::api<IImage>( new RichContents() );
   }
 
 }}
+

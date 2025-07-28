@@ -1,7 +1,6 @@
 # if !defined( __DelphiX_lang_api_hpp__ )
 # define __DelphiX_lang_api_hpp__
 # include "contents.hpp"
-# include "text-api.hpp"
 
 namespace DelphiX {
 
@@ -14,35 +13,20 @@ namespace DelphiX {
     constexpr static  unsigned hieroglyph = 0xff;
   };
 
-  struct IImage: public IContents
+  struct ILemmatizer: public mtc::Iface
   {
-    virtual void  AddTerm(
-      unsigned        pos,
-      unsigned        idl,
-      uint32_t        lex, const uint8_t*, size_t ) = 0;
-    virtual void  AddStem(
-      unsigned        pos,
-      unsigned        idl,
-      const widechar* str,
-      size_t          len,
-      uint32_t        cls, const uint8_t*, size_t ) = 0;
+    struct IWord: public mtc::Iface
+    {
+      virtual void  AddTerm( uint32_t lex, float flp,
+        const uint8_t*, size_t ) = 0;
+      virtual void  AddStem( const widechar* pws, size_t len, uint32_t cls, float flp,
+        const uint8_t*, size_t ) = 0;
+    };
+
+    virtual int   Lemmatize( IWord*, const widechar*, size_t ) = 0;
   };
 
-  struct DecomposeHolder;
-
-  typedef int (*DecomposeInit)( DecomposeHolder**, const char* );
-  typedef int (*DecomposeFree)( DecomposeHolder* );
-
- /*
-  * DecomposeText
-  *
-  * Creates text decomposition to lexemes for each word passed.
-  * Has to be thread-safe, i.e. contain no read-write internal data.
-  *
-  */
-  typedef int (*DecomposeText)( DecomposeHolder*, IImage*,
-    const textAPI::TextToken*, size_t,
-    const textAPI::MarkupTag*, size_t );
+  typedef int  (*CreateLemmatizer)( ILemmatizer**, const char* );
 
 };
 
