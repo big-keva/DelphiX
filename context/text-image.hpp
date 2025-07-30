@@ -2,10 +2,10 @@
 # define __DelphiX_context_text_image_hpp__
 # include "index-keys.hpp"
 # include "../text-api.hpp"
+# include "../slices.hpp"
 # include <mtc/bitset.h>
 # include <functional>
-#include <memory>
-#include <slices.hpp>
+# include <memory>
 
 namespace DelphiX {
 namespace context {
