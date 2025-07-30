@@ -7,8 +7,6 @@
 # include <stdexcept>
 # include <memory>
 
-#include "DOM-load.hpp"
-
 namespace DelphiX {
 namespace textAPI {
 namespace dump_as {
