@@ -59,10 +59,14 @@ namespace textAPI {
     BaseDocument( Allocator allocator = Allocator() ):
       lines( allocator ),
       spans( allocator )  {}
+    BaseDocument( BaseDocument&& );
+    BaseDocument( const BaseDocument& ) = delete;
     BaseDocument( const std::initializer_list<Item>& init, Allocator mman = Allocator() ):
       BaseDocument( init, codepages::codepage_utf8, mman ) {}
     BaseDocument( const std::initializer_list<Item>&, unsigned cp, Allocator = Allocator() );
    ~BaseDocument();
+
+    BaseDocument& operator=( BaseDocument&& );
 
   public:
     void  clear();
@@ -153,6 +157,12 @@ namespace textAPI {
   // Document implementation
 
   template <class Allocator>
+  BaseDocument<Allocator>::BaseDocument( BaseDocument&& from )
+  {
+    operator=( std::move( from ) );    // important!!!
+  }
+
+  template <class Allocator>
   BaseDocument<Allocator>::BaseDocument( const std::initializer_list<Item>& init, unsigned codepage, Allocator mman ):
     lines( mman ),
     spans( mman )
@@ -173,6 +183,20 @@ namespace textAPI {
   BaseDocument<Allocator>::~BaseDocument()
   {
     clear();
+  }
+
+  template <class Allocator>
+  auto  BaseDocument<Allocator>::operator = ( BaseDocument&& from ) -> BaseDocument&
+  {
+    pspan = nullptr;  from.pspan = nullptr;
+
+    clear();
+
+    lines = std::move( from.lines );
+    spans = std::move( from.spans );
+    chars = std::move( from.chars );
+
+    return from.chars = 0, *this;
   }
 
   template <class Allocator>
