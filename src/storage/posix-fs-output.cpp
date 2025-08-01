@@ -1,5 +1,6 @@
 # include "../../storage/posix-fs.hpp"
-# include <mtc/fileStream.h>
+# include <mtc/exceptions.h>
+# include <mtc/bufStream.h>
 # include <mtc/wcsstr.h>
 # include <functional>
 # include <stdexcept>
@@ -158,9 +159,12 @@ namespace posixFS {
     Sink  aSink( policies.GetInstance( stamp ) );
 
   // OK, the list of files is captured; create the sink
-    aSink.entities = mtc::OpenFileStream( aSink.policies.GetPolicy( entities )->GetFilePath( entities ).c_str(), O_RDWR );
-    aSink.contents = mtc::OpenFileStream( aSink.policies.GetPolicy( contents )->GetFilePath( contents ).c_str(), O_RDWR );
-    aSink.blocks = mtc::OpenFileStream( aSink.policies.GetPolicy( blocks )->GetFilePath( blocks ).c_str(), O_RDWR );
+    aSink.entities = mtc::OpenBufStream( aSink.policies.GetPolicy( entities )
+      ->GetFilePath( entities ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
+    aSink.contents = mtc::OpenBufStream( aSink.policies.GetPolicy( contents )
+      ->GetFilePath( contents ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
+    aSink.blocks   = mtc::OpenBufStream( aSink.policies.GetPolicy( blocks )
+      ->GetFilePath( blocks ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
 //    aSink.images   = mtc::OpenFileStream( policies.GetPolicy( images )->GetFilePath( images, stamp ).c_str(), O_RDWR );
 
     return new Sink( std::move( aSink ) );
