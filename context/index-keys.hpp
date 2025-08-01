@@ -18,8 +18,8 @@ namespace context {
 
     struct OnHeapKey
     {
-      int     rcount;
       void  (*freeFn)( OnHeapKey* );
+      int     rcount;
     };
 
     template <class Allocator>
@@ -31,7 +31,7 @@ namespace context {
     public:
       Allocated( Allocator mem, void (*Delete)( OnHeapKey* ) ):
         malloc( mem ),
-        onHeap{ 1, Delete } {}
+        onHeap{ Delete, 1 } {}
     };
 
     template <class Allocator> static
