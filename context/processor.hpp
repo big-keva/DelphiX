@@ -21,16 +21,18 @@ namespace context {
     template <class Allocator>  class InsertTerms;
 
   public:
+    enum: size_t
+    {
+      max_word_length = 64
+    };
+
   template <class Allocator>
     auto  Lemmatize( BaseImage<Allocator>& ) const -> BaseImage<Allocator>&;
-  template <class Allocator, class OtherAllocator>
-    auto  SetMarkup( BaseImage<Allocator>&, const textAPI::BaseDocument<OtherAllocator>& ) const -> BaseImage<Allocator>&;
-  template <class Allocator, class OtherAllocator>
-    auto  WordBreak( BaseImage<Allocator>&,
-      const textAPI::BaseDocument<OtherAllocator>&, FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
   template <class Allocator>
-    auto  WordBreak(
-      const textAPI::BaseDocument<Allocator>&, FieldHandler* = nullptr ) const -> Image;
+    auto  SetMarkup( BaseImage<Allocator>&, const textAPI::ITextView& ) const -> BaseImage<Allocator>&;
+  template <class Allocator>
+    auto  WordBreak( BaseImage<Allocator>&, const textAPI::ITextView&, FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+    auto  WordBreak( const textAPI::ITextView&, FieldHandler* = nullptr ) const -> Image;
 
   public:
     auto  Initialize( unsigned langId, const mtc::api<ILemmatizer>& ) -> Processor&;
@@ -63,7 +65,7 @@ namespace context {
     }
     void  AddStem( const widechar* pws, size_t len, uint32_t cls, float, const uint8_t* forms, size_t count ) override
     {
-      lemmas.emplace_back( langId, cls, pws, len, memman );
+      lemmas.emplace_back( langId, cls, pws, len, lemmas.get_allocator() );
       lemmas.back().GetForms().set( forms, count );
     }
 
@@ -76,15 +78,14 @@ namespace context {
   protected:
     std::vector<Lexeme, Allocator>& lemmas;
     unsigned                        langId;
-    Allocator                       memman;
 
   };
 
   // Processor template implementation
 
-  template <class Allocator, class OtherAllocator>
+  template <class Allocator>
   auto  Processor::SetMarkup( BaseImage<Allocator>& image,
-    const textAPI::BaseDocument<OtherAllocator>& input ) const -> BaseImage<Allocator>&
+    const textAPI::ITextView& input ) const -> BaseImage<Allocator>&
   {
     image.markup.insert( image.markup.end(),
       input.GetMarkup().begin(), input.GetMarkup().end() );
@@ -152,9 +153,9 @@ namespace context {
   *
   * stores words with context flags, pointer, offset and length to output array
   */
-  template <class Allocator, class OtherAllocator>
+  template <class Allocator>
   auto Processor::WordBreak( BaseImage<Allocator>& body,
-    const textAPI::BaseDocument<OtherAllocator>& input, FieldHandler* fdset ) const -> BaseImage<Allocator>&
+    const textAPI::ITextView& input, FieldHandler* fdset ) const -> BaseImage<Allocator>&
   {
     std::vector<uint64_t>  nonBrk;
     uint32_t               offset = 0;
@@ -228,14 +229,6 @@ namespace context {
       }
     }
     return body;
-  }
-
-  template <class Allocator>
-  auto  Processor::WordBreak( const textAPI::BaseDocument<Allocator>& input, FieldHandler* fdset ) const -> Image
-  {
-    Image   image;
-
-    return std::move( WordBreak( image, input, fdset ) );
   }
 
 }}
