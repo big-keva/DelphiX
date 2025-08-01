@@ -382,7 +382,7 @@ namespace dynamic {
     {
       ChainHook*  keyChain;
 
-      for ( keySyncro.wait( locker, [&](){  return !runThread;  } ); keysQueue.Get( keyChain ); )
+      for ( keySyncro.wait( locker ); runThread && keysQueue.Get( keyChain ); )
         radixTree.Insert( { keyChain->data(), keyChain->cchkey }, { keyChain, 0, 0 } );
     }
   }
@@ -429,7 +429,7 @@ namespace dynamic {
 
   // check if index is not being built this moment and get the latest
   // insert position
-    if ( (mtc::ptr::toint( anchor = ppoint.load() ) & 0x01) == 0 )
+    if ( mtc::ptr::is_clean( anchor = ppoint.load() ) )
     {
       while ( anchor >= points && (pentry = (anchor--)->load())->entity >= entity )
         (void)NULL;
