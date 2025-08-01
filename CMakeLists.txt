@@ -14,6 +14,11 @@ if (SANITIZER_ENABLED)
 	add_link_options(-fsanitize=address)
 endif()
 
+if (PROFILER_ENABLED)
+	add_compile_options(-p -pg)
+	add_link_options(-p -pg)
+endif()
+
 include_directories(
 	./
 	contrib)
@@ -57,7 +62,8 @@ add_library(DelphiX
 	src/textAPI/dump-as-json.cpp
 	src/textAPI/dump-as-tags.cpp
 	src/textAPI/load-as-json.cpp
-	src/textAPI/load-as-tags.cpp)
+	src/textAPI/load-as-tags.cpp
+	src/textAPI/text-toolkit.cpp)
 
 # target_include_directories(DelphiX PUBLIC
 #		${CMAKE_CURRENT_SOURCE_DIR}

@@ -5,6 +5,8 @@
 # include <stdexcept>
 # include <cstdint>
 
+#include "slices.hpp"
+
 namespace DelphiX {
 namespace textAPI {
 
@@ -66,6 +68,17 @@ namespace textAPI {
     void  AddString( const wide_string<Allocator>& );
 
   };
+
+  struct ITextView: mtc::Iface
+  {
+    virtual auto  GetBlocks() const -> Slice<const TextChunk> = 0;
+    virtual auto  GetMarkup() const -> Slice<const MarkupTag> = 0;
+    virtual auto  GetLength() const -> uint32_t = 0;
+  };
+
+  bool  IsEncoded( const ITextView&, unsigned codepage );
+  auto  CopyUtf16( IText*, const ITextView&, unsigned encode = codepages::codepage_utf8 ) -> IText*;
+  auto  Serialize( IText*, const ITextView& ) -> IText*;
 
   inline
   bool  operator == ( const TextToken& t1, const TextToken& t2 )

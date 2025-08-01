@@ -13,7 +13,7 @@ namespace DelphiX {
 namespace textAPI {
 
   template <class Allocator>
-  class BaseDocument final: public IText
+  class BaseDocument final: public IText, public ITextView
   {
     class  Str;
 
@@ -26,7 +26,6 @@ namespace textAPI {
     using widestr = basestr<widechar>;
 
     class Markup;
-    class UtfTxt;
 
     implement_lifetime_stub
 
@@ -71,23 +70,18 @@ namespace textAPI {
   public:
     void  clear();
 
-    auto  GetBlocks() const -> const std::vector<TextChunk, Allocator>&
-      {  return lines;  }
-    auto  GetMarkup() const -> const std::vector<MarkupTag, Allocator>&
-      {  return spans;  }
-
-    bool  IsEncoded( unsigned codepage ) const;
+    auto  GetBlocks() const -> Slice<const TextChunk> override  {  return lines;  }
+    auto  GetMarkup() const -> Slice<const MarkupTag> override  {  return spans;  }
+    auto  GetLength() const -> uint32_t override                {  return chars;  }
 
   public:
     auto  AddFormat( const std::string&, uint32_t, uint32_t ) -> MarkupTag&;
-    auto  CopyUtf16( IText*, unsigned cp = codepages::codepage_utf8 ) const -> IText*;
 
     auto  GetBufLen() const -> size_t;
   template <class O>
     auto  Serialize( O* ) const -> O*;
   template <class S>
     auto  FetchFrom( S* ) -> S*;
-
     auto  Serialize( IText* ) const -> IText*;
 
   protected:
@@ -128,29 +122,6 @@ namespace textAPI {
     mtc::api<BaseDocument>  docptr;
     mtc::api<Markup>        nested;
     size_t                  tagBeg;
-
-  };
-
-  template <class Allocator>
-  class BaseDocument<Allocator>::UtfTxt final: public IText
-  {
-    implement_lifetime_control
-
-  public:
-    UtfTxt( mtc::api<IText> tx, unsigned cp ):
-      output( tx ),
-      encode( cp )  {}
-
-    auto  AddTextTag( const char* tag, size_t len ) -> mtc::api<IText> override
-      {  return new UtfTxt( output->AddTextTag( tag, len ), encode );  }
-    void  AddCharStr( const char* str, size_t len, unsigned enc ) override
-      {  output->AddString( codepages::mbcstowide( enc != 0 ? enc : encode, str, len ) );  }
-    void  AddWideStr( const widechar* str, size_t len ) override
-      {  return output->AddWideStr( str, len );  }
-
-  protected:
-    mtc::api<IText> output;
-    unsigned        encode;
 
   };
 
@@ -271,15 +242,6 @@ namespace textAPI {
   }
 
   template <class Allocator>
-  bool BaseDocument<Allocator>::IsEncoded( unsigned codepage ) const
-  {
-    for ( auto& next: lines )
-      if ( next.encode != codepage )
-        return false;
-    return true;
-  }
-
-  template <class Allocator>
   auto  BaseDocument<Allocator>::AddFormat( const std::string& format, uint32_t ulower, uint32_t uupper ) -> MarkupTag&
   {
     auto  fmtstr = strcpy( rebind<char>( spans.get_allocator() ).allocate( format.length() + 1 ),
@@ -287,14 +249,6 @@ namespace textAPI {
 
     spans.push_back( { fmtstr, ulower, uupper } );
     return spans.back();
-  }
-
-  template <class Allocator>
-  auto  BaseDocument<Allocator>::CopyUtf16( IText* output, unsigned encode ) const -> IText*
-  {
-    UtfTxt  utfOut( output, encode );
-      Serialize( (IText*)&utfOut );
-    return output;
   }
 
   template <class Allocator>
@@ -411,41 +365,7 @@ namespace textAPI {
   template <class Allocator>
   auto  BaseDocument<Allocator>::Serialize( IText* text ) const -> IText*
   {
-    auto  lineIt = lines.begin();
-    auto  spanIt = spans.begin();
-    auto  offset = uint32_t(0);
-    auto  fPrint = std::function<void( IText*, uint32_t )>( [&]( IText* to, uint32_t up )
-      {
-        while ( lineIt != lines.end() && offset < up )
-        {
-        // check if print next line to current IText*
-          if ( spanIt == spans.end() || offset < spanIt->uLower )
-          {
-            if ( lineIt->encode == unsigned(-1) )
-              to->AddString( lineIt->GetWideStr() );
-            else
-              to->AddString( lineIt->GetCharStr(), lineIt->encode );
-
-            offset += lineIt->length;
-
-            if ( ++lineIt == lines.end() )  return;
-              continue;
-          }
-
-        // check if open new span
-          if ( offset >= spanIt->uLower )
-          {
-            auto  new_to = to->AddTextTag( spanIt->format );
-            auto  uUpper = spanIt->uUpper;
-              ++spanIt;
-            fPrint( new_to.ptr(), uUpper );
-          }
-        }
-      } );
-
-    fPrint( text, chars );
-
-    return text;
+    return textAPI::Serialize( text, *this );
   }
 
   // Document::Markup template implementation
