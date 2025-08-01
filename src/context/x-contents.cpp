@@ -119,18 +119,13 @@ namespace context {
     }
     auto  GetBufLen() const -> size_t override
     {
-      auto  ptrbeg = this->begin();
-      auto  oldent = *ptrbeg++;
-      auto  length = ::GetBufLen( oldent );
-
-      for ( ; ptrbeg != this->end(); oldent = *ptrbeg++ )
-        length += ::GetBufLen( *ptrbeg - oldent - 1 );
+      auto  length = GetCooLen();
 
       return ::GetBufLen( length ) + length;
     }
     char* Serialize( char* o ) const override
     {
-      if ( (o = ::Serialize( o, GetBufLen() )) != nullptr )
+      if ( (o = ::Serialize( o, GetCooLen() )) != nullptr )
       {
         auto  ptrbeg = this->begin();
         auto  oldent = *ptrbeg++;
@@ -139,6 +134,19 @@ namespace context {
           o = ::Serialize( o, *ptrbeg - oldent - 1 );
       }
       return o;
+    }
+
+  protected:
+    auto  GetCooLen() const
+    {
+      auto  ptrbeg = this->begin();
+      auto  oldent = *ptrbeg++;
+      auto  length = ::GetBufLen( oldent );
+
+      for ( ; ptrbeg != this->end(); oldent = *ptrbeg++ )
+        length += ::GetBufLen( *ptrbeg - oldent - 1 );
+
+      return length;
     }
   };
 
@@ -152,7 +160,7 @@ namespace context {
     if ( pblock == nullptr )
     {
       pblock = keyToPos->Insert( key.data(), key.size(),
-        new Compressor( memArena.get_allocator<char>() ) );
+        memArena.Create<Compressor>() );
     }
 
     if ( (*pblock)->BlockType() != Compressor::objectType )
