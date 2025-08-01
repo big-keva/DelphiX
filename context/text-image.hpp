@@ -92,7 +92,8 @@ namespace context {
     bufbox( a ),
     markup( a ),
     tokens( a ),
-    lemmas( a )
+    lemmas( a ),
+    lexbuf( a )
   {}
 
   template <class Allocator>
@@ -100,7 +101,8 @@ namespace context {
     bufbox( std::move( b.bufbox ) ),
     markup( std::move( b.markup ) ),
     tokens( std::move( b.tokens ) ),
-    lemmas( std::move( b.lemmas ) )
+    lemmas( std::move( b.lemmas ) ),
+    lexbuf( std::move( b.lexbuf ) )
   {}
 
   template <class Allocator>
@@ -110,6 +112,7 @@ namespace context {
     markup = std::move( b.markup );
     tokens = std::move( b.tokens );
     lemmas = std::move( b.lemmas );
+    lexbuf = std::move( b.lexbuf );
     return *this;
   }
 
