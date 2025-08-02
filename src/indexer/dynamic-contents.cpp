@@ -222,13 +222,8 @@ namespace dynamic {
     contents.StopIt().Remove( shadowed );
 
   // store entities table
-    auto  tabStream = pStorage->Entities();
-      entities.Serialize( tabStream.ptr() );
-
-    auto  keyIndex = pStorage->Contents();
-    auto  keyChain = pStorage->Chains();
-
-    contents.Serialize( keyIndex.ptr(), keyChain.ptr() );
+    entities.Serialize( pStorage->Entities().ptr() );
+    contents.Serialize( pStorage->Contents().ptr(), pStorage->Chains().ptr() );
 
     return pStorage->Commit();
   }
