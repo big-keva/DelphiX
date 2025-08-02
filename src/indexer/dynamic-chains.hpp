@@ -5,10 +5,13 @@
 # include "dynamic-bitmap.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <mtc/radix-tree.hpp>
-# include <mtc/ptrpatch.h>
 # include <condition_variable>
 # include <thread>
 # include <atomic>
+
+# if defined( VERIFY_KEY_COUNT )
+#   include <cassert>
+# endif
 
 # define LineId( arg )  "" #arg
 
@@ -18,7 +21,7 @@ namespace dynamic {
 
   enum: size_t
   {
-    ring_buffer_size = 1024
+    ring_buffer_size = 0x1000
   };
 
   template <class Allocator = std::allocator<char>>
@@ -35,7 +38,7 @@ namespace dynamic {
 
     enum: size_t
     {
-      hash_table_size = 10501
+      hash_table_size = 40013
     };
 
   /*
@@ -230,7 +233,6 @@ namespace dynamic {
 
         if ( hvalue->bkType != bkType )
           throw std::invalid_argument( "Block type do not match the previously defined type" );
-
         return hvalue->Insert( entity, block );
       }
 
@@ -318,6 +320,14 @@ namespace dynamic {
   {
     uint64_t  offset = 0;
 
+# if defined( VERIFY_KEY_COUNT )
+    // для уверенности в том, что KeysIndexer ничего не промотал, проверить совпадение количества
+    // ключей в hash-table и в radixTree
+    for ( auto& next: hashTable )
+      for ( auto tostep = next.load(); tostep != nullptr; tostep = tostep->pchain.load() )
+        assert( radixTree.Search( { tostep->data(), tostep->cchkey } ) != nullptr );
+# endif   // VERIFY_KEY_COUNT
+
   // store all the index chains saving offset, count and length to the tree
     for ( auto next = radixTree.begin(), stop = radixTree.end(); next != stop && chain != nullptr; ++next )
     {
@@ -375,16 +385,17 @@ namespace dynamic {
   {
     std::mutex  waitex;
     auto        locker = mtc::make_unique_lock( waitex );
+    ChainHook*  addkey;
 
     pthread_setname_np( pthread_self(), "KeysIndexer" );
 
     for ( runThread = true; runThread; )
     {
-      ChainHook*  keyChain;
-
-      for ( keySyncro.wait( locker ); runThread && keysQueue.Get( keyChain ); )
-        radixTree.Insert( { keyChain->data(), keyChain->cchkey }, { keyChain, 0, 0 } );
+      for ( keySyncro.wait( locker ); keysQueue.Get( addkey ); )
+        radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
     }
+    while ( keysQueue.Get( addkey ) )
+      radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
   }
 
   // KeyBlockChains::ChainHook template implementation
