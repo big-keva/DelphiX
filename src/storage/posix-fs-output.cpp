@@ -76,6 +76,10 @@ namespace posixFS {
     if ( policy == nullptr )
       throw std::invalid_argument( "policy does not contain record for '.stats' file" );
 
+    entities = nullptr;
+    contents = nullptr;
+    blocks   = nullptr;
+
     close(
       open( policy->GetFilePath( status ).c_str(), O_CREAT + O_RDWR, 0644 ) );
 
