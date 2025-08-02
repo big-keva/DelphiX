@@ -213,7 +213,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
         REQUIRE_NOTHROW( contents = dynamic::Index()
           .Set( dynamic::Settings()
             .SetMaxEntities( 3 )
-            .SetMaxAllocate( 168880 ) )
+            .SetMaxAllocate( 321000 ) )
           .Create() );
 
         SECTION( "insertion of more entities than the limit causes count_overflow" )
