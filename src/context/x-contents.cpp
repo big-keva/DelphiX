@@ -119,26 +119,6 @@ namespace context {
     }
     auto  GetBufLen() const -> size_t override
     {
-      auto  length = GetCooLen();
-
-      return ::GetBufLen( length ) + length;
-    }
-    char* Serialize( char* o ) const override
-    {
-      if ( (o = ::Serialize( o, GetCooLen() )) != nullptr )
-      {
-        auto  ptrbeg = this->begin();
-        auto  oldent = *ptrbeg++;
-
-        for ( o = ::Serialize( o, oldent ); ptrbeg != this->end() && o != nullptr; oldent = *ptrbeg++ )
-          o = ::Serialize( o, *ptrbeg - oldent - 1 );
-      }
-      return o;
-    }
-
-  protected:
-    auto  GetCooLen() const
-    {
       auto  ptrbeg = this->begin();
       auto  oldent = *ptrbeg++;
       auto  length = ::GetBufLen( oldent );
@@ -148,6 +128,17 @@ namespace context {
 
       return length;
     }
+    char* Serialize( char* o ) const override
+    {
+      auto  ptrbeg = this->begin();
+      auto  oldent = *ptrbeg++;
+
+      for ( o = ::Serialize( o, oldent ); ptrbeg != this->end() && o != nullptr; oldent = *ptrbeg++ )
+        o = ::Serialize( o, *ptrbeg - oldent - 1 );
+
+      return o;
+    }
+
   };
 
   // Contents implementation
