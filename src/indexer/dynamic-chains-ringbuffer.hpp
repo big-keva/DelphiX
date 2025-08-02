@@ -1,5 +1,6 @@
 # if !defined( __DelphiX_src_indexer_dynamic_chains_ringbuffer_hxx__ )
 # define __DelphiX_src_indexer_dynamic_chains_ringbuffer_hxx__
+# include <mtc/ptr.h>
 # include <cstddef>
 # include <atomic>
 
@@ -24,32 +25,33 @@ namespace dynamic {
     }
 
   public:
-    void  Put( T p )
+    void  Put( T t )
     {
-      for ( ; ; )
+      for ( auto pstore = mtc::ptr::clean( bufend.load() ); ; pstore = mtc::ptr::clean( pstore ) )
       {
-      // allocate space for possible next value in buffer;
-        auto  pfetch = buftop.load();
-        auto  pstore = bufend.load();
         auto  pafter = next( pstore );
+        auto  pfetch = mtc::ptr::clean( buftop.load() );
 
-      // check if rotated buffer stops to reader buffer
-        if ( pafter != pfetch && bufend.compare_exchange_weak( pstore, pafter ) )
-          return (void)pstore->store( p );
+        if ( pafter != pfetch )
+        {
+          if ( bufend.compare_exchange_weak( pstore, mtc::ptr::dirty( pstore ) ) )
+            return (void)(pstore->store( t ), bufend = pafter);
+        }
       }
     }
     bool  Get( T& tvalue )
     {
-      for ( ; ; )
+      for ( auto  pfetch = mtc::ptr::clean( buftop.load() ); ; pfetch = mtc::ptr::clean( pfetch ) )
       {
-        auto  pfetch = buftop.load();
-        auto  pstore = bufend.load();
+        auto  pstore = mtc::ptr::clean( bufend.load() );
         auto  pafter = next( pfetch );
 
         if ( pfetch == pstore )
           return false;
-        if ( buftop.compare_exchange_weak( pfetch, pafter ) )
-          return (tvalue = pfetch->load()), true;
+
+        // make dirty fetch pointer
+        if ( buftop.compare_exchange_strong( pfetch, mtc::ptr::dirty( pfetch ) ) )
+          return tvalue = pfetch->load(), buftop = pafter, true;
       }
     }
   };
