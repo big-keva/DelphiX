@@ -87,19 +87,22 @@ namespace fusion {
     uint32_t  length = 0;
     uint32_t  uOldId = 0;
 
+
     for ( auto& block: blocks )
     {
       uint32_t  mapped;
 
       // list all the references in the block
       for ( auto entry = block.entityBlock->Find( 0 ); entry.uEntity != uint32_t(-1); entry = block.entityBlock->Find( 1 + entry.uEntity ) )
-        if ( (mapped = (*block.mapEntities)[entry.uEntity]) != uint32_t(-1) )
+      {
+        if ( (mapped = block.mapEntities->at( entry.uEntity )) != uint32_t(-1) )
         {
           if ( buffer.size() == buffer.capacity() )
             buffer.reserve( buffer.capacity() + 0x10000 );
 
           buffer.push_back( { mapped, entry.details } );
         }
+      }
     }
 
     // check if any objects in a buffer, resort, serialize and return the length
@@ -199,7 +202,7 @@ namespace fusion {
     auto  iterators = std::vector<RecordIterator>();
     auto  selectSet = std::vector<size_t>( indices.size() );
     auto  refVector = std::vector<EntityReference>( 0x100000 );
-    auto  rootIndex = mtc::radix::tree<RadixLink>();
+    auto  radixTree = mtc::radix::tree<RadixLink>();
     auto  keyRecord = RadixLink{ 0, 0, 0, 0 };
 
   // create iterators list
@@ -209,21 +212,20 @@ namespace fusion {
   // list all the keys and select merge lists
     for ( ; ; )
     {
-      size_t              nCount = 0;
-      const std::string*  select = nullptr;
+      auto  nCount = size_t(0);
+      auto  select = (const std::string*)nullptr;
 
     // select lower key
       for ( size_t i = 0; i != iterators.size(); ++i )
         if ( !iterators[i].Curr().empty() )
         {
-          if ( nCount == 0 || select->compare( iterators[i].Curr() ) > 0 )
+          int   rescmp;
+
+          if ( nCount == 0 || (rescmp = select->compare( iterators[i].Curr() )) >= 0 )
           {
-            select = &iterators[selectSet[(nCount = 1), 0]].Curr();
-          }
-            else
-          if ( select->compare( iterators[i].Curr() ) == 0 )
-          {
-            selectSet[nCount++] = i;
+            if ( rescmp > 0 )
+              nCount = 0;
+            select = &iterators[selectSet[nCount++] = i].Curr();
           }
         }
 
@@ -231,22 +233,22 @@ namespace fusion {
       if ( nCount != 0 )
       {
         auto  blockList = std::vector<MapEntities>( nCount );
-        auto  buildStats = std::pair<uint32_t, uint32_t>{};
+        auto  mergeStat = std::pair<uint32_t, uint32_t>{};
 
         for ( size_t i = 0; i != nCount; ++i )
           blockList[i] = { indices[selectSet[i]]->GetKeyBlock( *select ), &remapId[selectSet[i]] };
 
         refVector.resize( 0 );
 
-        if ( (buildStats = MergeChains( chains, refVector, blockList )).second != 0 )
+        if ( (mergeStat = MergeChains( chains, refVector, blockList )).second != 0 )
         {
           keyRecord.bkType = blockList.front().entityBlock->Type();
-          keyRecord.uCount = buildStats.first;
-          keyRecord.length = buildStats.second;
+          keyRecord.uCount = mergeStat.first;
+          keyRecord.length = mergeStat.second;
 
-          rootIndex.Insert( *select, keyRecord );
+          radixTree.Insert( *select, keyRecord );
 
-          keyRecord.offset += buildStats.second;
+          keyRecord.offset += mergeStat.second;
         }
 
         for ( size_t i = 0; i != nCount; ++i )
@@ -254,13 +256,13 @@ namespace fusion {
       } else break;
     }
 
-    rootIndex.Serialize( contents.ptr() );
+    radixTree.Serialize( contents.ptr() );
   }
 
   auto  ContentsMerger::Add( mtc::api<IContentsIndex> index ) -> ContentsMerger&
   {
     indices.emplace_back( index );
-    remapId.emplace_back( index->GetMaxIndex() + 1 );
+    remapId.emplace_back( index->GetMaxIndex() + 2 );
     return *this;
   }
 
