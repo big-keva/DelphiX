@@ -51,13 +51,12 @@ namespace indexer {
       uint32_t                  uUpper;
       mtc::api<IContentsIndex>  pIndex;
       std::vector<IndexEntry>   backup;
+      uint32_t                  dwSets = 0;
 
     public:
       IndexEntry( uint32_t uLower, mtc::api<IContentsIndex> pindex );
       IndexEntry( const IndexEntry& );
-      IndexEntry( IndexEntry&& );
       IndexEntry& operator=( const IndexEntry& );
-      IndexEntry& operator=( IndexEntry&& );
 
     public:
       auto  Override( mtc::api<const IEntity> ) const -> mtc::api<const IEntity>;

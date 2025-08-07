@@ -164,18 +164,12 @@ namespace indexer {
     pIndex( index )
   {
   }
-
   IndexLayers::IndexEntry::IndexEntry( const IndexEntry& ie ):
     uLower( ie.uLower ),
     uUpper( ie.uUpper ),
-    pIndex( ie.pIndex )
-  {
-  }
-
-  IndexLayers::IndexEntry::IndexEntry( IndexEntry&& ie ):
-    uLower( ie.uLower ),
-    uUpper( ie.uUpper ),
-    pIndex( ie.pIndex )
+    pIndex( ie.pIndex ),
+    backup( ie.backup ),
+    dwSets( ie.dwSets )
   {
   }
 
@@ -184,14 +178,8 @@ namespace indexer {
     uLower = ie.uLower;
     uUpper = ie.uUpper;
     pIndex = ie.pIndex;
-    return *this;
-  }
-
-  auto  IndexLayers::IndexEntry::operator=( IndexEntry&& ie ) -> IndexEntry&
-  {
-    uLower = ie.uLower;
-    uUpper = ie.uUpper;
-    pIndex = std::move( ie.pIndex );
+    backup = ie.backup;
+    dwSets = ie.dwSets;
     return *this;
   }
 
