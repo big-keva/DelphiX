@@ -53,6 +53,7 @@ namespace static_ {
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
+    void  Remove() override;
 
     void  Stash( EntityId ) override;
 
@@ -295,6 +296,11 @@ namespace static_ {
     return xStorage;
   }
 
+  void  ContentsIndex::Remove()
+  {
+    return xStorage->Remove();
+  }
+
   void  ContentsIndex::Stash( EntityId id )
   {
     auto  getdoc = entities.GetEntity( id );
@@ -345,21 +351,24 @@ namespace static_ {
 
   auto  ContentsIndex::EntitiesRich::Find( uint32_t tofind ) -> Reference
   {
-    for ( tofind = std::max( tofind, 1U ); ptrtop < ptrend; )
-    {
-      unsigned  udelta;
-      unsigned  ublock;
+    unsigned  udelta;
+    unsigned  ublock;
 
+    if ( curref.uEntity >= (tofind = std::max( tofind, 1U )) )
+      return curref;
+
+    while ( ptrtop < ptrend )
+    {
       if ( (ptrtop = ::FetchFrom( ::FetchFrom( ptrtop, udelta ), ublock )) == nullptr )
         return curref = { (uint32_t)-1, { nullptr, 0 } };
 
       if ( (curref.uEntity += udelta + 1) >= tofind && !parent->shadowed.Get( curref.uEntity ) )
       {
-        curref.details = { ptrtop, ublock + 1 };
-        return ptrtop += ublock + 1, curref;
+        curref.details = { ptrtop, ublock };
+        return ptrtop += ublock, curref;
       }
 
-      if ( (ptrtop += ublock + 1) >= ptrend )
+      if ( (ptrtop += ublock) >= ptrend )
         break;
     }
     return curref = { (uint32_t)-1, { nullptr, 0 } };
