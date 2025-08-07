@@ -13,8 +13,6 @@
 #   include <cassert>
 # endif
 
-# define LineId( arg )  "" #arg
-
 namespace DelphiX {
 namespace indexer {
 namespace dynamic {
@@ -136,6 +134,7 @@ namespace dynamic {
   public:     //serialization
     template <class O1, class O2>
     bool  Serialize( O1*, O2* );
+    bool  VerifyIds( unsigned ) const;
 
   protected:
     void  KeysIndexer();
@@ -357,12 +356,12 @@ namespace dynamic {
           if ( p->entity != uint32_t(-1) )
           {
             auto  diffId = p->entity - lastId - 1;
-            auto  diffBl = p->lblock - 1;
+            auto  blkLen = p->lblock;
 
-            length += ::GetBufLen( diffId ) + p->lblock + ::GetBufLen( diffBl );
+            length += ::GetBufLen( diffId ) + p->lblock + ::GetBufLen( blkLen );
               chain = ::Serialize( ::Serialize( ::Serialize( chain,
                 diffId ),
-                diffBl ), p->data(), diffBl + 1 );
+                blkLen ), p->data(), blkLen );
             lastId = p->entity;
           }
       }
@@ -372,6 +371,19 @@ namespace dynamic {
 
   // store radix tree
     return chain != nullptr && (index = radixTree.Serialize( index )) != nullptr;
+  }
+
+  template <class Allocator>
+  bool  BlockChains<Allocator>::VerifyIds( unsigned maxIndex ) const
+  {
+    // store all the index chains saving offset, count and length to the tree
+    for ( auto next = radixTree.begin(), stop = radixTree.end(); next != stop; ++next )
+    {
+      for ( auto p = next->value.blocksChain->pfirst.load(); p != nullptr; p = p->p_next.load() )
+        if ( p->entity != uint32_t(-1) && p->entity > maxIndex )
+          return false;
+    }
+    return true;
   }
 
  /*
