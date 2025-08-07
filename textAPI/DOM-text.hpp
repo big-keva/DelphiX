@@ -34,17 +34,34 @@ namespace textAPI {
     {
       friend class BaseDocument;
 
-      Item( const char* s ):
-        str( s ),
+      Item( const char* s, size_t l = size_t(-1) ):
+        psz( s ),
+        wsz( nullptr ),
+        cch( l ),
+        tag( nullptr ),
+        arr( nullptr )  {}
+      Item( const widechar* s, size_t l = size_t(-1) ):
+        psz( nullptr ),
+        wsz( s ),
+        cch( l ),
         tag( nullptr ),
         arr( nullptr )  {}
       Item( const char* t, const std::initializer_list<Item>& l ):
-        str( nullptr ),
+        psz( nullptr ),
+        wsz( nullptr ),
         tag( t ),
         arr( &l ) {}
+    template <class StringAllocator>
+      Item( const std::basic_string<char, std::char_traits<char>, StringAllocator>& s ):
+        Item( s.c_str() ) {}
+    template <class StringAllocator>
+      Item( const std::basic_string<widechar, std::char_traits<widechar>, StringAllocator>& s ):
+        Item( s.c_str() ) {}
 
     protected:
-      const char*                         str;
+      const char*                         psz;
+      const widechar*                     wsz;
+      size_t                              cch = size_t(-1);
       const char*                         tag;
       const std::initializer_list<Item>*  arr;
     };
@@ -143,7 +160,9 @@ namespace textAPI {
     fnFill = [&]( mtc::api<IText> to, const std::initializer_list<Item>& it )
       {
         for ( auto& next: it )
-          if ( next.str != nullptr )  to->AddCharStr( next.str, -1, codepage );
+          if ( next.psz != nullptr )  to->AddCharStr( next.psz, next.cch, codepage );
+            else
+          if ( next.wsz != nullptr )  to->AddWideStr( next.wsz, next.cch );
             else  fnFill( to->AddMarkup( next.tag ), *next.arr );
       };
 
