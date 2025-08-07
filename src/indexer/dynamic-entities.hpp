@@ -434,25 +434,14 @@ namespace dynamic {
   template <class O>
   O*  EntityTable<Allocator>::Serialize( O* o ) const
   {
-    auto  sorted = std::vector<const Entity*>();
-    auto  entDEL = Entity( entTable.get_allocator(), uint32_t(-1) );
+    auto  delEnt = Entity( entTable.get_allocator(), uint32_t(-1) );
 
     if ( (o = Entity( entTable.get_allocator() ).Serialize( o )) == nullptr )
       return nullptr;
 
-    sorted.reserve( ptrStore.load() - &getEntity( 1 ) );
-
-    for ( auto ptr = &getEntity( 1 ), end = ptrStore.load(); ptr !=  end; ++ptr )
-      sorted.emplace_back( ptr );
-
-    std::sort( sorted.begin(), sorted.end(), []( const Entity* lhs, const Entity* rhs )
-      {  return lhs->id < rhs->id; } );
-
-    for ( auto& p: sorted )
-    {
-      if ( p->index != uint32_t(-1) ) o = p->Serialize( o );
-        else o = entDEL.Serialize( o );
-    }
+    for ( auto ptr = &getEntity( 1 ), end = ptrStore.load(); ptr != end && o != nullptr; ++ptr )
+      if ( ptr->index != uint32_t(-1) ) o = ptr->Serialize( o );
+        else o = delEnt.Serialize( o );
 
     return o;
   }
