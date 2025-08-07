@@ -5,6 +5,10 @@
 # include <mtc/iBuffer.h>
 # include <functional>
 
+# define __LN_STRING( arg )  #arg
+# define _LN__STRING( arg )  __LN_STRING( arg )
+# define LINE_STRING _LN__STRING(__LINE__)
+
 namespace DelphiX
 {
   struct IEntity;             // common object properties
@@ -156,6 +160,13 @@ namespace DelphiX
     virtual auto  Reduce() -> mtc::api<IContentsIndex> = 0;
 
    /*
+    * Remove()
+    *
+    * Forwards remove call to the nested storage manager
+    */
+    virtual void  Remove() = 0;
+
+   /*
     * Stash( id )
     *
     * Stashes entity wothout any modifications to index.
@@ -180,7 +191,7 @@ namespace DelphiX
     struct Reference
     {
       uint32_t    uEntity;
-      StrView        details;
+      StrView     details;
     };
 
     virtual auto  Find( uint32_t ) -> Reference = 0;
