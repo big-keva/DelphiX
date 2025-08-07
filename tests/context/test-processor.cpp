@@ -56,15 +56,14 @@ TestItEasy::RegisterFunc  test_processor( []()
     context::Image      txBody;
     textAPI::Document   ucText;
 
-    textAPI::Document{
+    CopyUtf16( &ucText, textAPI::Document{
       "Первая строка текста: просто строка",
       "Вторая строка в новом абзаце",
       { "tag-1", {
         "Строка внутри тега",
         { "tag-2", {
           "Строка внутри вложенного тега" } } } },
-      "Третья строка."
-    }.CopyUtf16( &ucText );
+      "Третья строка." } );
 
     SECTION( "it works only with utf16 texts" )
     {

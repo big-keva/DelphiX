@@ -1,5 +1,4 @@
-#include <context/x-contents.hpp>
-
+# include "../../context/x-contents.hpp"
 # include "../../context/processor.hpp"
 # include <mtc/test-it-easy.hpp>
 
@@ -16,15 +15,16 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
 {
   auto  proc = Processor();
   auto  text = Document();
-    Document{
-      { "title", {
-          "Сказ про радугу",
-          "/",
-          "Rainbow tales" } },
-      { "body", {
-          "Как однажды Жак Звонарь"
-          "Городской сломал фонарь" } },
-      "Очень старый фонарь" }.CopyUtf16( &text );
+
+  CopyUtf16( &text, Document{
+    { "title", {
+        "Сказ про радугу",
+        "/",
+        "Rainbow tales" } },
+    { "body", {
+        "Как однажды Жак Звонарь"
+        "Городской сломал фонарь" } },
+    "Очень старый фонарь" } );
   auto  body =
     proc.WordBreak( text );
     proc.SetMarkup( body, text );
@@ -77,10 +77,7 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
                 if ( REQUIRE( bkType == 20 ) && REQUIRE( value.size() != 0 ) )
                 {
                   int   getpos;
-                  int   bkSize;
-                  auto  source = ::FetchFrom( ::FetchFrom( value.data(),
-                    bkSize ),
-                    getpos );
+                  auto  source = ::FetchFrom( value.data(), getpos );
 
                   if ( Key( key.data(), key.size() ) == StrKey( "радугу" ) )
                   {
