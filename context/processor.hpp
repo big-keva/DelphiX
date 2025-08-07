@@ -31,8 +31,12 @@ namespace context {
   template <class Allocator>
     auto  SetMarkup( BaseImage<Allocator>&, const textAPI::ITextView& ) const -> BaseImage<Allocator>&;
   template <class Allocator>
-    auto  WordBreak( BaseImage<Allocator>&, const textAPI::ITextView&, FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
-    auto  WordBreak( const textAPI::ITextView&, FieldHandler* = nullptr ) const -> Image;
+    auto  WordBreak( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+  template <class Allocator>
+    auto  MakeImage( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+
+    auto  WordBreak( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
+    auto  MakeImage( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
 
   public:
     auto  Initialize( unsigned langId, const mtc::api<ILemmatizer>& ) -> Processor&;
@@ -154,8 +158,8 @@ namespace context {
   * stores words with context flags, pointer, offset and length to output array
   */
   template <class Allocator>
-  auto Processor::WordBreak( BaseImage<Allocator>& body,
-    const textAPI::ITextView& input, FieldHandler* fdset ) const -> BaseImage<Allocator>&
+  auto Processor::WordBreak( BaseImage<Allocator>& body, const textAPI::ITextView& input,
+    const FieldHandler* fdset ) const -> BaseImage<Allocator>&
   {
     std::vector<uint64_t>  nonBrk;
     uint32_t               offset = 0;
@@ -229,6 +233,13 @@ namespace context {
       }
     }
     return body;
+  }
+
+  template <class Allocator>
+  auto  Processor::MakeImage( BaseImage<Allocator>& body, const textAPI::ITextView& text,
+    const FieldHandler* fdset ) const -> BaseImage<Allocator>&
+  {
+    return SetMarkup( Lemmatize( WordBreak( body, text, fdset ) ), text );
   }
 
 }}
