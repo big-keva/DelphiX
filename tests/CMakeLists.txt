@@ -14,6 +14,11 @@ add_executable(test-DelphiX-context
 	context/test-contents.cpp
 	context/test-processor.cpp
 	context/test-fields-manager.cpp
+	context/test-mini-queries.cpp
+	test-main.cpp)
+
+add_executable(test-DelphiX-queries
+	queries/test-queries-parser.cpp
 	test-main.cpp)
 
 add_executable(test-DelphiX-textAPI
