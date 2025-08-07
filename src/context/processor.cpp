@@ -3,11 +3,18 @@
 namespace DelphiX {
 namespace context {
 
-  auto  Processor::WordBreak( const textAPI::ITextView& input, FieldHandler* fdset ) const -> Image
+  auto  Processor::WordBreak( const textAPI::ITextView& input, const FieldHandler* fdset ) const -> Image
   {
     Image   image;
 
     return std::move( WordBreak( image, input, fdset ) );
+  }
+
+  auto  Processor::MakeImage( const textAPI::ITextView& input, const FieldHandler* fdset ) const -> Image
+  {
+    Image   image;
+
+    return std::move( MakeImage( image, input, fdset ) );
   }
 
   auto  Processor::Initialize( unsigned langId, const mtc::api<ILemmatizer>& module ) -> Processor&
