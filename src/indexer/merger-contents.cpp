@@ -45,15 +45,16 @@ namespace fusion  {
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
     auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override;
+    void  Remove() override;
     void  Stash( EntityId ) override  {}
 
   protected:
@@ -102,8 +103,6 @@ namespace fusion  {
 
   void  ContentsIndex::MergerThreadFunc()
   {
-    ContentsMerger  merger;
-
     pthread_setname_np( pthread_self(), "merger::Thread" );
 
     for ( auto& next: layers )
@@ -119,6 +118,9 @@ namespace fusion  {
     // serialize accumulated changes, dispose old index and open new static
       hpatch.Commit( serial = target );
       output = static_::Index().Create( serial = target );
+
+      for ( auto& next: layers )
+        next.pIndex->Remove();
 
     // notify merger finished
       s_wait.notify_all();
@@ -291,6 +293,11 @@ namespace fusion  {
       std::rethrow_exception( except );
 
     return output;
+  }
+
+  void  ContentsIndex::Remove()
+  {
+    throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );
   }
 
   // Index implementation

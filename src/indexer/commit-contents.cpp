@@ -41,15 +41,16 @@ namespace commit  {
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
     auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override;
+    void  Remove() override;
     void  Stash( EntityId ) override  {}
 
   protected:
@@ -280,6 +281,16 @@ namespace commit  {
       std::rethrow_exception( except );
 
     return output;
+  }
+
+  void  ContentsIndex::Remove()
+  {
+    auto  shlock = mtc::make_shared_lock( swLock );
+
+    if ( output != nullptr )
+      output->Remove();
+    if ( source != nullptr )
+      source->Remove();
   }
 
   // Commit implementation

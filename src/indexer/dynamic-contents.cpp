@@ -45,10 +45,11 @@ namespace dynamic {
     auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override;
 
     auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
+    void  Remove() override;
 
     void  Stash( EntityId ) override  {  throw std::logic_error("not implemented");  }
 
@@ -221,11 +222,19 @@ namespace dynamic {
   // finalize keys thread and remove all the deleted elements from lists
     contents.StopIt().Remove( shadowed );
 
+//    contents.VerifyIds( GetMaxIndex() );
+
   // store entities table
     entities.Serialize( pStorage->Entities().ptr() );
     contents.Serialize( pStorage->Contents().ptr(), pStorage->Chains().ptr() );
 
     return pStorage->Commit();
+  }
+
+  void  ContentsIndex::Remove()
+  {
+    if ( pStorage != nullptr )
+      pStorage->Remove();
   }
 
   // ContentsIndex::Entities implemenation
