@@ -31,6 +31,7 @@ namespace textAPI {
     uint32_t        length;
 
     auto  GetWideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
+    auto  LeftSpaced() const {  return (uFlags & lt_space) != 0;  }
 
   };
 
