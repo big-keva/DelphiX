@@ -13,6 +13,7 @@ add_executable(test-DelphiX-context
 	context/test-key.cpp
 	context/test-contents.cpp
 	context/test-processor.cpp
+	context/test-tag-compressor.cpp
 	context/test-fields-manager.cpp
 	context/test-mini-queries.cpp
 	test-main.cpp)
