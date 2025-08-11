@@ -62,6 +62,8 @@ namespace context {
     char* keyptr;
 
     template <class A>
+    using char_string = std::basic_string<char, std::char_traits<char>, A>;
+    template <class A>
     using wide_string = std::basic_string<widechar, std::char_traits<widechar>, A>;
 
     template <class I>
@@ -82,11 +84,19 @@ namespace context {
   template <class Allocator = std::allocator<char>>
     Key( unsigned, const widechar*, size_t, Allocator = Allocator() );
   template <class OtherAllocator, class Allocator = std::allocator<char>>
-    Key( unsigned, uint32_t, const wide_string<OtherAllocator>&, Allocator = Allocator() );
+    Key( unsigned idl, uint32_t cls, const wide_string<OtherAllocator>& str, Allocator mem = Allocator() ):
+      Key( idl, cls, str.data(), str.size(), mem ) {}
   template <class OtherAllocator, class Allocator = std::allocator<char>>
-    Key( unsigned, const wide_string<OtherAllocator>&, Allocator = Allocator() );
+    Key( unsigned idl, const wide_string<OtherAllocator>& str, Allocator mem = Allocator() ):
+      Key( idl, str.data(), str.size(), mem ) {}
   template <class Allocator = std::allocator<char>>
     Key( const void*, size_t, Allocator = Allocator() );
+  template <class OtherAllocator, class Allocator = std::allocator<char>>
+    Key( const char_string<OtherAllocator>& str, Allocator mem = Allocator() ):
+      Key( str.data(), str.size(), mem )  {}
+  template <class Allocator = std::allocator<char>>
+    Key( const std::string_view& str, Allocator mem = Allocator() ):
+      Key( str.data(), str.size(), mem )  {}
    ~Key();
 
     Key& operator=( Key&& ) noexcept;
@@ -193,14 +203,6 @@ namespace context {
 
     writeint( outptr, uint16_t(0) );
   }
-
-  template <class OtherAllocator, class Allocator>
-  Key::Key( unsigned idl, uint32_t cls, const wide_string<OtherAllocator>& str, Allocator mem ):
-    Key( idl, cls, str.data(), str.size(), mem ) {}
-
-  template <class OtherAllocator, class Allocator>
-  Key::Key( unsigned idl, const wide_string<OtherAllocator>& str, Allocator mem ):
-    Key( idl, str.data(), str.size(), mem ) {}
 
   template <class Allocator>
   Key::Key( const void* data, size_t size, Allocator mem )
