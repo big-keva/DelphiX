@@ -1,4 +1,5 @@
 # include "../../context/x-contents.hpp"
+# include "serial-formats.hpp"
 # include <mtc/arbitrarymap.h>
 # include <mtc/arena.hpp>
 
@@ -48,6 +49,7 @@ namespace context {
 
     template <class Compressor>
     void  AddEntry( const Key&, const typename Compressor::entry_type& );
+    void  SetBlock( const Key&, unsigned typeId, const Slice<const char>& );
 
   public:      // overridables from IContents
     void  Enum( IContentsIndex::IIndexAPI* ) const override;
@@ -141,6 +143,24 @@ namespace context {
 
   };
 
+  template <unsigned typeId, class Allocator>
+  class TagCompressor: public Contents::Entries, public formats::Compressor<Allocator>
+  {
+    using formats::Compressor<Allocator>::Compressor;
+
+  public:
+    enum: unsigned {  objectType = typeId  };
+
+    using entry_type = textAPI::FormatTag<unsigned>;
+
+  public:
+    void  AddRecord( const entry_type& entry )          {  return formats::Compressor<Allocator>::AddMarkup( entry );  }
+    auto  BlockType() const -> unsigned override        {  return objectType;  }
+    auto  GetBufLen() const -> size_t override          {  return formats::Compressor<Allocator>::GetBufLen();  }
+    auto  Serialize( char* o ) const -> char* override  {  return formats::Compressor<Allocator>::Serialize( o );  }
+
+  };
+
   // Contents implementation
 
   template <class Compressor>
@@ -206,7 +226,7 @@ namespace context {
 
   auto  GetMiniContents(
     const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup ) -> mtc::api<IContents>
+    const Slice<const textAPI::MarkupTag>&  mkup, FieldHandler& ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api<Contents>( new Contents() );
 
@@ -219,7 +239,7 @@ namespace context {
 
   auto  GetBM25Contents(
     const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup ) -> mtc::api<IContents>
+    const Slice<const textAPI::MarkupTag>&  mkup, FieldHandler& ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api<Contents>( new Contents() );
 
@@ -232,9 +252,10 @@ namespace context {
 
   auto  GetRichContents(
     const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup ) -> mtc::api<IContents>
+    const Slice<const textAPI::MarkupTag>&  mkup,
+    FieldHandler&                           fman ) -> mtc::api<IContents>
   {
-    auto  contents = mtc::api<Contents>( new Contents() );
+    auto  contents = mtc::api( new Contents() );
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
       for ( auto& term: lemm[i] )
@@ -244,6 +265,15 @@ namespace context {
         else
           contents->AddEntry<Compressor<21, RichEntry, Contents::AllocatorType>>( term, { i, term.GetForms().front() } );
       }
+
+    for ( auto& next: mkup )
+    {
+      auto  pfield = fman.Get( next.format );
+      auto  fmtkey = Key( "format" );
+
+      if ( pfield != nullptr )
+        contents->AddEntry<TagCompressor<99, Contents::AllocatorType>>( fmtkey, { pfield->id, next.uLower, next.uUpper } );
+    }
 
     return (void)mkup, contents.ptr();
   }
