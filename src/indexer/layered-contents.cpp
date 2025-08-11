@@ -7,6 +7,7 @@
 # include "index-layers.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <shared_mutex>
+# include <cmath>
 
 namespace DelphiX {
 namespace indexer {
@@ -39,14 +40,15 @@ namespace layered {
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
     auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented" );  }
+      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override {  return this;  }
+    void  Remove() override;
 
     void  Stash( EntityId ) override  {}
 
@@ -55,8 +57,7 @@ namespace layered {
     using EventRec = std::pair<void*, Notify::Event>;
 
     void  MergeMonitor( const std::chrono::seconds& );
-    auto  SelectLimits() -> std::pair<LayersIt, LayersIt>
-      {  return { layers.end(), layers.end() };  }
+    auto  SelectLimits() -> std::pair<LayersIt, LayersIt>;
     auto  WaitGetEvent( const std::chrono::seconds& ) -> EventRec;
 
   protected:
@@ -74,6 +75,7 @@ namespace layered {
     std::mutex                  evMutex;
     std::condition_variable     evEvent;
     std::thread                 monitor;
+    volatile bool               merging = false;
   };
 
   // ContentsIndex implementation
@@ -100,6 +102,7 @@ namespace layered {
       addContents( dynamic::Index()
         .Set( dynamic )
         .Set( dynSet ).Create() );
+      layers.back().dwSets = 1;
       rdOnly = false;
     } else rdOnly = true;
   }
@@ -194,6 +197,7 @@ namespace layered {
             .Set( dynSet )
             .Set( istore->CreateStore() ).Create() );
           layers.back().uUpper = (uint32_t)-1;
+          layers.back().dwSets = 1;
         }
       }
     }
@@ -207,7 +211,12 @@ namespace layered {
 
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
   {
-    throw std::logic_error( "not implemented" );
+    throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );
+  }
+
+  void  ContentsIndex::Remove()
+  {
+    throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );
   }
 
   auto  ContentsIndex::GetMaxIndex() const -> uint32_t
@@ -258,9 +267,14 @@ namespace layered {
 
             pfound->pIndex = pfound->pIndex->Reduce();
             pfound->backup.clear();
+            pfound->dwSets = 0;
 
             std::sort( layers.begin(), layers.end() - 1, []( const IndexEntry& a, const IndexEntry& b )
-              {  return a.pIndex->GetMaxIndex() > b.pIndex->GetMaxIndex();  } );
+            {
+              if ( a.dwSets != b.dwSets )
+                return (a.dwSets != 0) > (b.dwSets != 0 );
+              return a.pIndex->GetMaxIndex() > b.pIndex->GetMaxIndex();
+            } );
 
             for ( auto& index: layers )
               uLower = (index.uUpper = (index.uLower = uLower) + index.pIndex->GetMaxIndex() - 1) + 1;
@@ -280,8 +294,9 @@ namespace layered {
           case Notify::Event::Canceled:
           {
             auto  backup = std::move( pfound->backup );
-              pfound = layers.erase( pfound );
-            layers.insert( pfound, backup.begin(), backup.end() );
+
+            layers.insert( layers.erase( pfound ),
+              backup.begin(), backup.end() );
             break;
           }
 
@@ -310,12 +325,13 @@ namespace layered {
                 {
                   mtc::interlocked( mtc::make_unique_lock( evMutex ), [&]()
                     {  evQueue.emplace_back( to, event );  } );
-                  evEvent.notify_one();
+                  merging = false;
+                    evEvent.notify_one();
                 } )
 //              .Set( canContinue )
               .Set( istore->CreateStore() );
 
-            for ( auto p =  limits.first; p != limits.second; ++p )
+            for ( auto p = limits.first; p != limits.second; ++p )
             {
               xMaker.Add( p->pIndex );
               limits.first->backup.push_back( IndexEntry{ p->uLower, p->pIndex } );
@@ -323,19 +339,73 @@ namespace layered {
 
             limits.first->uUpper = limits.first->backup.back().uUpper;
             limits.first->pIndex = xMaker.Create();
+            limits.first->dwSets = 1;
 
-            layers.erase( limits.first + 1, layers.end() );
+            layers.erase( limits.first + 1, limits.second );
+
+            merging = true;
           }
         }
       }
     }
   }
 
+ /*
+  * Ищет самую длинную постедовательность самых маленьких индексов. Критерий -
+  */
+  auto  ContentsIndex::SelectLimits() -> std::pair<LayersIt, LayersIt>
+  {
+    auto  asizes = std::vector<uint32_t>();
+    auto  select = std::make_pair( layers.end(), layers.end() );
+    float srange;
+    auto  Ranker = [&]( int from, int to ) -> float
+    {
+      auto  min_size = uint32_t(-1);
+      auto  max_size = uint32_t(0);
+      auto  med_size = uint32_t(0);
+
+      for ( auto i = from; i != to; ++i )
+      {
+        min_size = std::min( min_size, asizes[i] );
+        max_size = std::max( max_size, asizes[i] );
+        med_size += asizes[i];
+      }
+      med_size /= (to - from);
+
+      auto  s_factor = 1 / (1 + log(1 + (max_size - min_size) / 1000.0));
+      auto  l_factor = 0.2 + sin(1.57 + atan((med_size - 1) / 10000.0)) * 0.8;
+      auto  n_factor = 0.2 + sin(2 * atan((to - from - 2) / 6.0)) * 0.8;
+
+      return s_factor * l_factor * n_factor;
+    };
+
+    if ( merging )
+      return select;
+
+    for ( auto& next: layers )
+      asizes.push_back( next.dwSets == 0 ? next.pIndex->GetMaxIndex() : 0 );
+
+    for ( size_t from = 0; from != asizes.size(); ++from )
+      if ( asizes[from] != 0 )
+        for ( size_t to = from + 1; to <= asizes.size() && asizes[to - 1] != 0; ++to )
+          if ( to - from > 1 )
+          {
+            float crange = Ranker( from, to );
+
+            if ( select.first == select.second || crange > srange || (crange == srange && from - to > select.second - select.first) )
+            {
+              select = { layers.begin() + from, layers.begin() + to };
+              srange = crange;
+            }
+          }
+    return select;
+  }
+
 // check if any events occured; process events first
 // for each processed event, either reduce the index sent the event,
 // or simply remove the empty index
 // or process the errors
-  auto ContentsIndex::WaitGetEvent( const std::chrono::seconds& timeout ) -> EventRec
+  auto  ContentsIndex::WaitGetEvent( const std::chrono::seconds& timeout ) -> EventRec
   {
     auto  exwait = mtc::make_unique_lock( evMutex );
     auto  fEvent = [this](){  return !canRun || !evQueue.empty();  };
