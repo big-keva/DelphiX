@@ -6,13 +6,18 @@ namespace DelphiX {
 namespace context {
 namespace formats {
 
-  class Compressor: protected std::vector<Compressor>, public textAPI::FormatTag<unsigned>
+  template <class Allocator = std::allocator<char>>
+  class Compressor: protected std::vector<Compressor<Allocator>, Allocator>, public textAPI::FormatTag<unsigned>
   {
-    Compressor( const FormatTag& tag ): FormatTag( tag ) {}
+  public:
+    Compressor( Allocator mem = Allocator() ):
+      std::vector<Compressor, Allocator>( mem ) {}
+    Compressor( const FormatTag& tag, Allocator mem = Allocator() ):
+      std::vector<Compressor, Allocator>( mem ), FormatTag( tag )  {}
+
+    using entry_type = FormatTag;
 
   public:
-    Compressor() = default;
-
     void  AddMarkup( const FormatTag& );
     void  SetMarkup( const Slice<FormatTag>& );
     auto  GetBufLen() const -> size_t;
@@ -53,27 +58,27 @@ namespace formats {
 
   // Compressor implementation
 
-  inline
-  void  Compressor::AddMarkup( const FormatTag& tag )
+  template <class Allocator>
+  void  Compressor<Allocator>::AddMarkup( const FormatTag& tag )
   {
-    if ( size() == 0 || tag.uLower > back().uUpper )
-      return push_back( tag );
-    if ( back().uLower <= tag.uLower && back().uUpper >= tag.uUpper )
-      return back().AddMarkup( tag );
+    if ( this->empty() || tag.uLower > this->back().uUpper )
+      return (void)this->emplace_back( tag, this->get_allocator() );
+    if ( this->back().uLower <= tag.uLower && this->back().uUpper >= tag.uUpper )
+      return (void)this->back().AddMarkup( tag );
     throw std::logic_error( "invalid tags order" );
   }
 
-  inline
-  void  Compressor::SetMarkup( const Slice<FormatTag>& tags )
+  template <class Allocator>
+  void  Compressor<Allocator>::SetMarkup( const Slice<FormatTag>& tags )
   {
     for ( auto& tag: tags )
       AddMarkup( tag );
   }
 
-  inline
-  size_t  Compressor::GetBufLen() const
+  template <class Allocator>
+  size_t  Compressor<Allocator>::GetBufLen() const
   {
-    auto  buflen = ::GetBufLen( size() );
+    auto  buflen = ::GetBufLen( this->size() );
 
     for ( auto& next: *this )
     {
@@ -87,8 +92,9 @@ namespace formats {
     return buflen;
   }
 
+  template <class Allocator>
   template <class O>
-  O*  Compressor::Serialize( O* o ) const
+  O*  Compressor<Allocator>::Serialize( O* o ) const
   {
     o = ::Serialize( o, this->size() );
 
@@ -137,6 +143,7 @@ namespace formats {
     return loader = nullptr;
   }
 
+  inline
   bool  Decompressor::LoadIt( Markup& tag )
   {
     if ( (source = ::FetchFrom( ::FetchFrom( ::FetchFrom( source,
