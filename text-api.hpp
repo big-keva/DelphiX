@@ -2,6 +2,7 @@
 # define __DelphiX_textAPI_text_api_hpp__
 # include <moonycode/codes.h>
 # include <mtc/interfaces.h>
+# include <mtc/serialize.h>
 # include <stdexcept>
 # include <cstdint>
 
@@ -10,12 +11,26 @@
 namespace DelphiX {
 namespace textAPI {
 
-  struct MarkupTag
+  template <class Format>
+  struct FormatTag
   {
-    const char* format;
+    static_assert( std::is_integral<Format>::value
+      || mtc::class_is_string<Format>::value
+      || std::is_same<Format, const char*>::value
+      || std::is_same<Format, const widechar*>::value, "invalid tag type, strings and integers allowed" );
+
+    Format      format;
     uint32_t    uLower;     // start offset, bytes
     uint32_t    uUpper;     // end offset, bytes
+
+  public:
+    bool operator==( const FormatTag& to ) const
+      {  return format == to.format && uLower == to.uLower && uUpper == to.uUpper;  }
+    bool operator!=( const FormatTag& to ) const
+      {  return !(*this == to);  }
   };
+
+  using MarkupTag = FormatTag<const char*>;
 
   struct TextToken
   {
