@@ -1,5 +1,6 @@
 # include "../../storage/posix-fs.hpp"
 # include <mtc/exceptions.h>
+# include <mtc/fileStream.h>
 # include <mtc/bufStream.h>
 # include <mtc/wcsstr.h>
 # include <functional>
