@@ -1,5 +1,5 @@
-# if !defined( __DelphiX_src_context_serial_formats_hpp__ )
-# define __DelphiX_src_context_serial_formats_hpp__
+# if !defined( __DelphiX_src_context_formats_hpp__ )
+# define __DelphiX_src_context_formats_hpp__
 # include "../../text-api.hpp"
 
 namespace DelphiX {
@@ -160,4 +160,4 @@ namespace formats {
 
 }}}
 
-# endif   // !__DelphiX_src_context_serial_formats_hpp__
+# endif   // !__DelphiX_src_context_formats_hpp__
