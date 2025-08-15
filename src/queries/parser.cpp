@@ -201,8 +201,9 @@ template <class T>
           subset.emplace_back( mtc::widestr( ptrtop->pwsstr, ptrend->length ) );
 
         return mtc::zmap{
-          { forced ? "phrase" : "sequence", std::move( subset ) } };
+          { forced ? "quote" : "order", std::move( subset ) } };
       }
+
      /*
       * Разбить последовательность на подзапросы по самым 'слабым' операторам.
       *
@@ -290,7 +291,7 @@ template <class T>
     return {};
   }
 
-  auto ParseContext( const Token* ptrtop, const Token* ptrend ) -> mtc::zval
+  auto  ParseContext( const Token* ptrtop, const Token* ptrend ) -> mtc::zval
   {
     widechar* pwsend;
     unsigned  ulimit = mtc::w_strtoul( ptrtop->pwsstr, &pwsend, 0 );
@@ -310,7 +311,7 @@ template <class T>
         { "query", ParseQuery( ptrtop + 2, ptrend ) } } } };
   }
 
-  auto ParseField( unsigned fn, const Token* ptrtop, const Token* ptrend ) -> mtc::zval
+  auto  ParseField( unsigned fn, const Token* ptrtop, const Token* ptrend ) -> mtc::zval
   {
     mtc::array_charstr  fields;
     bool                waitOp;
@@ -343,7 +344,7 @@ template <class T>
 
   // make unique fields
     std::sort( fields.begin(), fields.end() );
-    fields.erase( std::unique( fields.begin(), fields.end() ), fields.end() );
+      fields.erase( std::unique( fields.begin(), fields.end() ), fields.end() );
 
   // create the subquery
     if ( fields.size() == 1 )

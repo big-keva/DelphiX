@@ -54,6 +54,10 @@ add_library(DelphiX
 	src/indexer/override-entities.cpp
 	src/indexer/static-contents.cpp
 
+	src/queries/parser.cpp
+	src/queries/base-queries.cpp
+	src/queries/rich-queries.cpp
+
 	src/storage/posix-fs-output.cpp
 	src/storage/posix-fs-serial.cpp
 	src/storage/posix-fs-storage.cpp

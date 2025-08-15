@@ -31,6 +31,7 @@ namespace textAPI {
   };
 
   using MarkupTag = FormatTag<const char*>;
+  using RankerTag = FormatTag<unsigned>;
 
   struct TextToken
   {

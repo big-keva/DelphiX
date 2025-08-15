@@ -17,6 +17,13 @@ namespace context {
     return std::move( MakeImage( image, input, fdset ) );
   }
 
+  auto  Processor::Lemmatize( const mtc::widestr& str ) const -> std::vector<Lexeme>
+  {
+    std::vector<Lexeme> lexbuf;
+
+    return std::move( Lemmatize( lexbuf, str.c_str(), str.length() ) );
+  }
+
   auto  Processor::Initialize( unsigned langId, const mtc::api<ILemmatizer>& module ) -> Processor&
   {
     languages.push_back( { langId, module } );

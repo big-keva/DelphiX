@@ -48,15 +48,15 @@ TestItEasy::RegisterFunc  test_parser( []()
     }
     SECTION( "quoted phrases are treated as phrases" )
     {
-      SECTION( "single quote means exact sequence" )
-      {
-        REQUIRE( mtc::to_string( queries::ParseQuery( "'a b'" ) ) == mtc::to_string( mtc::zmap{
-          { "sequence", mtc::array_zval{ "a", "b" } } } ) );
-      }
       SECTION( "double quote means exact match" )
       {
         REQUIRE( mtc::to_string( queries::ParseQuery( "\"a b\"" ) ) == mtc::to_string( mtc::zmap{
-          { "phrase", mtc::array_zval{ "a", "b" } } } ) );
+          { "quote", mtc::array_zval{ "a", "b" } } } ) );
+      }
+      SECTION( "single quote means exact sequence" )
+      {
+        REQUIRE( mtc::to_string( queries::ParseQuery( "'a b'" ) ) == mtc::to_string( mtc::zmap{
+          { "order", mtc::array_zval{ "a", "b" } } } ) );
       }
     }
     SECTION( "functions add limitations" )

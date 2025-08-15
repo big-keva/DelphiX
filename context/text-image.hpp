@@ -18,6 +18,43 @@ namespace context {
     {
       uint64_t  fids[4] = { 0UL, 0UL, 0UL, 0UL };
 
+      class const_iterator
+      {
+        const uint64_t* fidPtr;
+        unsigned        uOrder;
+        unsigned        uShift;
+
+      public:
+        const_iterator( const const_iterator& it ):
+          fidPtr( it.fidPtr ),
+          uOrder( it.uOrder ),
+          uShift( it.uShift ) {}
+        const_iterator( const uint64_t* p, unsigned u, unsigned o ):
+          fidPtr( p ),
+          uOrder( u ),
+          uShift( o ) {}
+        bool  operator == ( const const_iterator& it ) const
+          {  return fidPtr == it.fidPtr && uOrder == it.uOrder && uShift == it.uShift;  }
+        bool  operator != ( const const_iterator& it ) const
+          {  return fidPtr != it.fidPtr || uOrder != it.uOrder || uShift != it.uShift;  }
+        auto  operator *() const -> uint8_t
+          {  return uOrder * sizeof(uint64_t) * CHAR_BIT + uShift;  }
+        auto  operator ++() -> const_iterator&
+          {
+            if ( ++uShift == sizeof(uint64_t) * CHAR_BIT )
+              {  ++uOrder;  uShift = 0;  }
+
+            while ( uOrder < 4 )
+            {
+              while ( uShift < sizeof(uint64_t) * CHAR_BIT && (fidPtr[uOrder] & (1 << uShift)) == 0 )
+                ++uShift;
+              if ( uShift == sizeof(uint64_t) * CHAR_BIT )
+                {  ++uOrder;  uShift = 0;  }
+            }
+            return *this;
+          }
+      };
+
     public:
       bool    empty() const
         {  return mtc::bitset_empty( fids );  }
@@ -27,8 +64,20 @@ namespace context {
         {  return mtc::bitset_set( fids, fid );  }
       void    set( const uint8_t* fid, size_t len )
         {  for ( auto end = fid + len; fid != end; ++fid )  set( *fid );  }
-      auto  front() const -> uint8_t  {  return mtc::bitset_first( fids );  }
-      auto  back() const -> uint8_t {  return mtc::bitset_last( fids );  }
+      auto  front() const -> uint8_t
+        {  return mtc::bitset_first( fids );  }
+      auto  back() const -> uint8_t
+        {  return mtc::bitset_last( fids );  }
+      auto  begin() const -> const_iterator
+        {
+          auto  ifirst = mtc::bitset_first( fids );
+          auto  uorder = ifirst / (sizeof(uint64_t) * CHAR_BIT);
+          auto  ushift = ifirst % (sizeof(uint64_t) * CHAR_BIT);
+
+          return ifirst != -1 ? const_iterator( fids, uorder, ushift ) : end();
+        }
+      auto  end() const -> const_iterator
+        {  return const_iterator( fids, 4, 0 );  };
     };
 
   public:

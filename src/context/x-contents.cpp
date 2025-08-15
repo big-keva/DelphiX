@@ -1,5 +1,5 @@
 # include "../../context/x-contents.hpp"
-# include "serial-formats.hpp"
+# include "formats.hpp"
 # include <mtc/arbitrarymap.h>
 # include <mtc/arena.hpp>
 
@@ -49,7 +49,7 @@ namespace context {
 
     template <class Compressor>
     void  AddEntry( const Key&, const typename Compressor::entry_type& );
-    void  SetBlock( const Key&, unsigned typeId, const Slice<const char>& );
+    auto  SetBlock( const Key&, unsigned type, size_t size ) -> Slice<char>;
 
   public:      // overridables from IContents
     void  Enum( IContentsIndex::IIndexAPI* ) const override;
@@ -143,21 +143,33 @@ namespace context {
 
   };
 
-  template <unsigned typeId, class Allocator>
-  class TagCompressor: public Contents::Entries, public formats::Compressor<Allocator>
+  class DataHolder: public Contents::Entries
   {
-    using formats::Compressor<Allocator>::Compressor;
+    const unsigned  bkType;
+
+    const size_t    length;
+    char            buffer[1];
+
+  protected:
+    DataHolder( unsigned type, size_t size ):
+      bkType( type ),
+      length( size )  {}
 
   public:
-    enum: unsigned {  objectType = typeId  };
+    template <class Allocator>
+    static  DataHolder* Create( unsigned type, size_t size, Allocator mman )
+    {
+      auto  malloc = typename std::allocator_traits<Allocator>::rebind_alloc<DataHolder>( mman );
+      auto  nalloc = sizeof(DataHolder) - sizeof(DataHolder::buffer) + size;
+      auto  palloc = malloc.allocate( (nalloc + sizeof(DataHolder) - 1) / sizeof(DataHolder) );
 
-    using entry_type = textAPI::FormatTag<unsigned>;
+      return new( palloc ) DataHolder( type, size );
+    }
 
-  public:
-    void  AddRecord( const entry_type& entry )          {  return formats::Compressor<Allocator>::AddMarkup( entry );  }
-    auto  BlockType() const -> unsigned override        {  return objectType;  }
-    auto  GetBufLen() const -> size_t override          {  return formats::Compressor<Allocator>::GetBufLen();  }
-    auto  Serialize( char* o ) const -> char* override  {  return formats::Compressor<Allocator>::Serialize( o );  }
+    auto  GetBuffer() -> Slice<char>                    {  return { buffer, length };  }
+    auto  BlockType() const -> unsigned override        {  return bkType;  }
+    auto  GetBufLen() const -> size_t override          {  return length;  }
+    auto  Serialize( char* o ) const -> char* override  {  return ::Serialize( o, buffer, length );  }
 
   };
 
@@ -178,6 +190,22 @@ namespace context {
       throw std::invalid_argument( "object types differ for different entries" );
 
     return ((Compressor*)(*pblock))->AddRecord( ent );
+  }
+
+  auto  Contents::SetBlock( const Key& key, unsigned type, size_t size ) -> Slice<char>
+  {
+    auto  pblock = keyToPos->Search( key.data(), key.size() );
+
+    if ( pblock == nullptr )
+    {
+      pblock = keyToPos->Insert( key.data(), key.size(),
+        DataHolder::Create( type, size, memArena.get_allocator<char>() ) );
+    }
+
+    if ( (*pblock)->BlockType() != type )
+      throw std::invalid_argument( "type of created object does not match the requested one" );
+
+    return ((DataHolder*)(*pblock))->GetBuffer();
   }
 
   void  Contents::Enum( IContentsIndex::IIndexAPI* index ) const
@@ -256,6 +284,7 @@ namespace context {
     FieldHandler&                           fman ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api( new Contents() );
+    auto  tag_pack = formats::Compressor();
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
       for ( auto& term: lemm[i] )
@@ -268,12 +297,14 @@ namespace context {
 
     for ( auto& next: mkup )
     {
-      auto  pfield = fman.Get( next.format );
-      auto  fmtkey = Key( "format" );
+      auto  pfield = fman.Add( next.format );
 
       if ( pfield != nullptr )
-        contents->AddEntry<TagCompressor<99, Contents::AllocatorType>>( fmtkey, { pfield->id, next.uLower, next.uUpper } );
+        tag_pack.AddMarkup( { pfield->id, next.uLower, next.uUpper } );
     }
+
+    auto  ftpack = contents->SetBlock( Key( "fmt" ), 99, ::GetBufLen( lemm.size() ) + tag_pack.GetBufLen() );
+      tag_pack.Serialize( ::Serialize( ftpack.data(), lemm.size() ) );
 
     return (void)mkup, contents.ptr();
   }

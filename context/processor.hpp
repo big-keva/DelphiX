@@ -29,14 +29,17 @@ namespace context {
   template <class Allocator>
     auto  Lemmatize( BaseImage<Allocator>& ) const -> BaseImage<Allocator>&;
   template <class Allocator>
+    auto  Lemmatize( std::vector<Lexeme, Allocator>&, const widechar*, size_t ) const -> std::vector<Lexeme, Allocator>&;
+  template <class Allocator>
+    auto  MakeImage( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+  template <class Allocator>
     auto  SetMarkup( BaseImage<Allocator>&, const textAPI::ITextView& ) const -> BaseImage<Allocator>&;
   template <class Allocator>
     auto  WordBreak( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
-  template <class Allocator>
-    auto  MakeImage( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
 
-    auto  WordBreak( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
+    auto  Lemmatize( const mtc::widestr& ) const -> std::vector<Lexeme>;
     auto  MakeImage( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
+    auto  WordBreak( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
 
   public:
     auto  Initialize( unsigned langId, const mtc::api<ILemmatizer>& ) -> Processor&;
@@ -126,19 +129,8 @@ namespace context {
       auto& values = strmap.GetVal( next );
       auto  curlen = image.lexbuf.size();
 
-    // lemmatize with languages
-      for ( auto& lang: languages )
-      {
-        lang.module->Lemmatize( InsertTerms( image.lexbuf, lang.langId ).ptr(),
-          (const widechar*)keystr, keylen / sizeof(widechar) );
-      }
-
-    // check for hieroglyph
-      if ( image.lexbuf.size() == curlen )
-      {
-        image.lexbuf.push_back( Lexeme( 0xff, codepages::strtolower( (const widechar*)keystr, keylen / sizeof(widechar) ),
-          image.lemmas.get_allocator() ) );
-      }
+    // lemmatize next word
+      Lemmatize( image.lexbuf, (const widechar*)keystr, keylen / sizeof(widechar) );
 
     // register word reference(s)
       for ( auto& i: values )
@@ -150,6 +142,22 @@ namespace context {
       l = { image.lexbuf.data() + size_t(l.data()), l.size() };
 
     return image;
+  }
+
+  template <class Allocator>
+  auto  Processor::Lemmatize( std::vector<Lexeme, Allocator>& buf, const widechar* str, size_t len ) const -> std::vector<Lexeme, Allocator>&
+  {
+    auto  curlen = buf.size();
+
+  // lemmatize with languages
+    for ( auto& lang: languages )
+      lang.module->Lemmatize( InsertTerms( buf, lang.langId ).ptr(), str, len );
+
+  // check for hieroglyph
+    if ( buf.size() == curlen )
+      buf.push_back( Lexeme( 0xff, codepages::strtolower( str, len ), buf.get_allocator() ) );
+
+    return buf;
   }
 
  /*

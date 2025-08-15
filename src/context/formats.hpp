@@ -11,7 +11,7 @@ namespace formats {
   {
   public:
     Compressor( Allocator mem = Allocator() ):
-      std::vector<Compressor, Allocator>( mem ) {}
+      std::vector<Compressor, Allocator>( mem ), FormatTag{ 0, 0, 0 } {}
     Compressor( const FormatTag& tag, Allocator mem = Allocator() ):
       std::vector<Compressor, Allocator>( mem ), FormatTag( tag )  {}
 
@@ -25,36 +25,61 @@ namespace formats {
     auto  Serialize( O* ) const -> O*;
   };
 
-  class Decompressor
+  inline  auto  Unpack(
+    textAPI::FormatTag<unsigned>* tbeg,
+    textAPI::FormatTag<unsigned>* tend,
+    const char*&                  pbeg,
+    const char*                   pend,
+    unsigned                      base = 0 ) -> unsigned
   {
-    using FormatTag = textAPI::FormatTag<unsigned>;
+    auto  torg( tbeg );
+    int   size;
 
-    struct Markup: FormatTag
+    if ( (pbeg = ::FetchFrom( pbeg, size )) == nullptr || pbeg == pend )
+      return 0;
+
+    while ( size-- > 0 )
     {
-      int   nextCount;
-      bool  hasNested;
-    };
+      unsigned  format;
+      unsigned  ulower;
+      unsigned  uupper;
 
-    const char* source;
-    Markup      tatree[0x20];
-    Markup*     loader = tatree - 1;
+      if ( (pbeg = ::FetchFrom( ::FetchFrom( ::FetchFrom( pbeg,
+        format ),
+        ulower ),
+        uupper )) == nullptr )
+      break;
 
-  public:
-    Decompressor( const char* s ): source( s )
-    {
-      if ( (source = ::FetchFrom( s, tatree->nextCount )) != nullptr && tatree->nextCount-- != 0 )
-        loader = LoadIt( *tatree ) ? tatree : nullptr;
+      *tbeg++ = { format >> 1, ulower + base, ulower + base + uupper };
+
+      if ( format & 1 )
+        tbeg += Unpack( tbeg, tend, pbeg, pend, ulower + base );
     }
+    return tbeg - torg;
+  }
 
-  public:
-    auto  GetTag() const -> const FormatTag*
-      {  return loader >= tatree ? loader : nullptr;  }
-    auto  ToNext( unsigned = unsigned(-1) ) -> const FormatTag*;
+  inline  auto  Unpack(
+    textAPI::FormatTag<unsigned>* tbeg, size_t tlen,
+    const char*                   pbeg, size_t size ) -> unsigned
+  {
+    return Unpack( tbeg, tbeg + tlen, pbeg, pbeg + size );
+  }
 
-  protected:
-    bool  LoadIt( Markup& );
+  template <size_t N>
+  auto  Unpack(
+    textAPI::FormatTag<unsigned>(&tags)[N],
+    const char*                   pbeg,
+    const char*                   pend ) -> unsigned
+  {
+    return Unpack( tags, tags + N, pbeg, pend );
+  }
 
-  };
+  template <size_t N>
+  auto  Unpack(
+    textAPI::FormatTag<unsigned>(&tags)[N], const char* pbeg, size_t size ) -> unsigned
+  {
+    return Unpack( tags, tags + N, pbeg, pbeg + size );
+  }
 
   // Compressor implementation
 
@@ -82,8 +107,14 @@ namespace formats {
 
     for ( auto& next: *this )
     {
-      buflen += ::GetBufLen( next.format ) + ::GetBufLen( (next.uLower << 1) | (next.size() != 0 ? 1 : 0) )
-        + ::GetBufLen( next.uUpper - next.uLower );
+      auto  loDiff = next.uLower - uLower;
+      auto  upDiff = next.uUpper - next.uLower;
+      auto  fStore = (next.format << 1) | (next.size() != 0 ? 1 : 0);
+
+      buflen +=
+        ::GetBufLen( fStore ) +
+        ::GetBufLen( loDiff ) +
+        ::GetBufLen( upDiff );
 
       if ( next.size() != 0 )
         buflen += next.GetBufLen();
@@ -100,12 +131,14 @@ namespace formats {
 
     for ( auto& next: *this )
     {
-      auto  uLower = (next.uLower << 1) | (next.size() != 0 ? 1 : 0);
-      auto  uUpper = next.uUpper - next.uLower;
+      auto  loDiff = next.uLower - uLower;
+      auto  upDiff = next.uUpper - next.uLower;
+      auto  fStore = (next.format << 1) | (next.size() != 0 ? 1 : 0);
 
-      o = ::Serialize( ::Serialize( ::Serialize( o, next.format ),
-        uLower ),
-        uUpper );
+      o = ::Serialize( ::Serialize( ::Serialize( o,
+        fStore ),
+        loDiff ),
+        upDiff );
 
       if ( next.size() != 0 )
         o = next.Serialize( o );
@@ -115,9 +148,9 @@ namespace formats {
   }
 
   // Decompressor implementation
-
+/*
   inline
-  auto  Decompressor::ToNext( unsigned format ) -> const FormatTag*
+  auto  Decompressor::GetNext( unsigned format ) -> const FormatTag*
   {
     for ( auto p = loader; p >= tatree; )
     {
@@ -144,6 +177,44 @@ namespace formats {
   }
 
   inline
+  auto  Decompressor::FindTag( unsigned offset ) -> const FormatTag*
+  {
+    const FormatTag* select = nullptr;
+
+  // check the trace for covering element
+    for ( auto p = loader; p >= tatree && select == nullptr; --p )
+      if ( p->uLower <= offset && p->uUpper >= offset )
+        select = p;
+
+  // now select is potentially best element; try lookup the format trace
+    for ( auto p = loader; p >= tatree && p->uLower <= offset; )
+    {
+      // если есть вложенные элементы, перейти к первому из них
+      if ( p->hasNested )
+      {
+        if ( (source = ::FetchFrom( source, (loader = p + 1)->nextCount )) == nullptr )
+          return loader = nullptr, select;
+        (p++)->hasNested = false;
+          continue;
+      }
+
+      // вложенных элементов нет, однако могут быть элементы в цепочке;
+      // загрузить следующий
+      if ( p->nextCount-- == 0 )
+        {  --p;  continue;  }
+
+      if ( !LoadIt( *(loader = p) ) )
+        return loader = nullptr, select;
+
+      if ( p->uLower > offset )
+        break;
+      if ( p->uUpper >= offset )
+        select = p;
+    }
+    return select;
+  }
+
+  inline
   bool  Decompressor::LoadIt( Markup& tag )
   {
     if ( (source = ::FetchFrom( ::FetchFrom( ::FetchFrom( source,
@@ -157,6 +228,7 @@ namespace formats {
     }
     return source != nullptr;
   }
+*/
 
 }}}
 

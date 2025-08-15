@@ -29,8 +29,9 @@ namespace DelphiX {
 
   struct FieldHandler
   {
+    virtual auto  Add( const StrView& ) ->             FieldOptions* = 0;
     virtual auto  Get( const StrView& ) const -> const FieldOptions* = 0;
-    virtual auto  Get( unsigned ) const -> const FieldOptions* = 0;
+    virtual auto  Get( unsigned       ) const -> const FieldOptions* = 0;
   };
 
 }
