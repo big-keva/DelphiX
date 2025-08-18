@@ -55,6 +55,8 @@ add_library(DelphiX
 	src/indexer/static-contents.cpp
 
 	src/queries/parser.cpp
+	src/queries/query-terms.cpp
+	src/queries/query-tools.cpp
 	src/queries/base-queries.cpp
 	src/queries/rich-queries.cpp
 
