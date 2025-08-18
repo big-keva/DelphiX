@@ -39,9 +39,9 @@ TestItEasy::RegisterFunc  test_parser( []()
     SECTION( "sequences are treated as 'find 'near'est match'" )
     {
       REQUIRE( mtc::to_string( queries::ParseQuery( "a b c" ) ) == mtc::to_string( mtc::zmap{
-        { "near", mtc::array_zval{ "a", "b", "c" } } } ) );
+        { "fuzzy", mtc::array_zval{ "a", "b", "c" } } } ) );
       REQUIRE( mtc::to_string( queries::ParseQuery( "a (b & c) d" ) ) == mtc::to_string( mtc::zmap{
-        { "near", mtc::array_zval{
+        { "fuzzy", mtc::array_zval{
           "a",
           mtc::zmap{ { "&&", mtc::array_zval{ "b", "c" } } },
           "d" } } } ) );
@@ -71,7 +71,7 @@ TestItEasy::RegisterFunc  test_parser( []()
           { "limit", mtc::zmap{
             { "context", 5 },
             { "query", mtc::zmap{
-              { "near", mtc::array_zval{ "a", "b", "c" } } } } } } } ) );
+              { "fuzzy", mtc::array_zval{ "a", "b", "c" } } } } } } } ) );
         REQUIRE( mtc::to_string( queries::ParseQuery( "ctx(5, a)" ) ) == mtc::to_string( mtc::zmap{
           { "limit", mtc::zmap{
             { "context", 5 },
@@ -93,12 +93,12 @@ TestItEasy::RegisterFunc  test_parser( []()
           { "cover", mtc::zmap{
             { "field", "title" },
             { "query", mtc::zmap{
-              { "near", mtc::array_charstr{ "a", "b" } } } } } } } ) );
+              { "fuzzy", mtc::array_charstr{ "a", "b" } } } } } } } ) );
         REQUIRE( mtc::to_string( queries::ParseQuery( "match(title+body, a b)" ) ) == mtc::to_string( mtc::zmap{
           { "match", mtc::zmap{
             { "field", mtc::array_charstr{ "body", "title" } },
             { "query", mtc::zmap{
-              { "near", mtc::array_charstr{ "a", "b" } } } } } } } ) );
+              { "fuzzy", mtc::array_charstr{ "a", "b" } } } } } } } ) );
       }
     }
   }

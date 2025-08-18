@@ -1,6 +1,7 @@
 # include "../../context/x-contents.hpp"
 # include "../../context/processor.hpp"
-# include "../../src/queries/rich-queries.hpp"
+# include "../../queries/builder.hpp"
+# include "../../src/queries/field-set.hpp"
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../textAPI/DOM-dump.hpp"
 # include <mtc/test-it-easy.hpp>
@@ -11,31 +12,7 @@ using namespace DelphiX::textAPI;
 auto  _W( const char* s ) -> mtc::widestr
   {  return codepages::mbcstowide( codepages::codepage_utf8, s );  }
 
-class MockFields: public FieldHandler
-{
-  auto  Get( const StrView& name ) const -> const FieldOptions* override
-  {
-    if ( name == "tag-1" )
-      return &tag_1;
-    if ( name == "tag-2" )
-      return &tag_2;
-    return nullptr;
-  }
-  auto  Add( const StrView& ) -> FieldOptions* override
-  {
-    return &tag_2;
-  }
-  auto  Get( unsigned ) const -> const FieldOptions* override
-  {
-    throw std::runtime_error( "MockFields::Get( id ) not implemented" );
-  }
-
-protected:
-  FieldOptions  tag_1 = {
-    1, "tag-1", 1.0, FieldOptions::ofNoBreakWords };
-  FieldOptions  tag_2 = {
-    2, "tag-2", 1.0 };
-};
+context::FieldManager fieldMan;
 
 auto  MakeStats( const std::initializer_list<std::pair<const char*, double>>& init ) -> mtc::zmap
 {
@@ -43,14 +20,13 @@ auto  MakeStats( const std::initializer_list<std::pair<const char*, double>>& in
 
   for ( auto& term: init )
     ts.set_zmap( _W( term.first ), { { "range", term.second } } );
-  return { { "stats", ts } };
+  return { { "terms-range-map", ts } };
 }
 
 auto  CreateRichIndex( const context::Processor& lp, const std::initializer_list<Document>& docs ) -> mtc::api<IContentsIndex>
 {
   auto  ct = indexer::dynamic::Index().Create();
   auto  id = 0;
-  auto  fm = MockFields();
 
   for ( auto& doc: docs )
   {
@@ -63,7 +39,7 @@ auto  CreateRichIndex( const context::Processor& lp, const std::initializer_list
     lp.WordBreak( ucBody, ucText ) ), ucText );
 
 //    ucBody.Serialize( dump_as::Json( dump_as::MakeOutput( stdout ) ) );
-    auto  ximage = GetRichContents( ucBody.GetLemmas(), ucBody.GetMarkup(), fm );
+    auto  ximage = GetRichContents( ucBody.GetLemmas(), ucBody.GetMarkup(), fieldMan );
     ct->SetEntity( mtc::strprintf( "doc-%u", id++ ), ximage.ptr() );
   }
   return ct;
@@ -82,10 +58,9 @@ bool  MatchIds( mtc::api<queries::IQuery> query, const std::initializer_list<uin
 
 TestItEasy::RegisterFunc  test_rich_queries( []()
 {
-  TEST_CASE( "context/rich-queries" )
+  TEST_CASE( "queries/rich" )
   {
     auto  lp = context::Processor();
-    auto  fm = MockFields();
     auto  xx = CreateRichIndex( lp, {
       { { "title", {
             "Сказ про радугу",
@@ -100,23 +75,37 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
       { "городской сумасшедший" } } );
 
+    SECTION( "field sets arythmetics intersect and join fields" )
+    {
+      auto  f1 = queries::FieldSet{ 1, 3, 2, 5, 4 };
+      auto  f2 = queries::FieldSet{ 5, 2, 7, 6, 8 };
+
+      SECTION( "it may be intersected" )
+      {
+        REQUIRE( (f1 & f2) == queries::FieldSet{ 2, 5 } );
+      }
+      SECTION( "it may be joined" )
+      {
+        REQUIRE( (f1 | f2) == queries::FieldSet{ 1, 2, 3, 4, 5, 6, 7, 8 } );
+      }
+    }
     SECTION( "rich query may be created from it's structured representation" )
     {
       mtc::api<queries::IQuery> query;
 
       SECTION( "* invalid query causes std::invalid_argument" )
       {
-        REQUIRE_EXCEPTION( query = queries::GetRichQuery( {}, {}, xx, lp, fm ), std::invalid_argument );
+        REQUIRE_EXCEPTION( query = queries::BuildRichQuery( {}, {}, xx, lp, fieldMan ), std::invalid_argument );
       }
       SECTION( "* for non-collection term the query is empty" )
       {
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "word", "Платон" } }, {}, xx, lp, fm ) ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( "Платон", {}, xx, lp, fieldMan ) ) )
           REQUIRE( query == nullptr );
       }
       SECTION( "* existing term produces a query" )
       {
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "word", "Городской" } },
-          MakeStats( { { "Городской", 0.3 } } ), xx, lp, fm ) ) && REQUIRE( query != nullptr ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( "Городской", {}, xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
         {
           SECTION( "entities are found with positions" )
           {
@@ -150,8 +139,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
             }
           }
         }
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "word", "фонарь" } },
-          MakeStats( { { "фонарь", 0.3 } } ), xx, lp, fm ) ) && REQUIRE( query != nullptr ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( "фонарь", {}, xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
         {
           SECTION( "entities are found with positions" )
           {
@@ -185,10 +174,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
       }
       SECTION( "* && query finds entities with both words" )
       {
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "&&", mtc::array_zval{ "городской", "фонарь" } } },
-          MakeStats( {
-            { "городской", 0.4 },
-            { "фонарь",    0.3 } } ), xx, lp, fm ) ) && REQUIRE( query != nullptr ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( mtc::zmap{ { "&&", mtc::array_zval{ "городской", "фонарь" } } }, {}, xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
         {
           SECTION( "entities are found with positions" )
           {
@@ -214,10 +201,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
       }
       SECTION( "* || query finds entities with any word" )
       {
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "||", mtc::array_zval{ "городской", "фонарь" } } },
-          MakeStats( {
-            { "городской", 0.4 },
-            { "фонарь",    0.3 } } ), xx, lp, fm ) ) && REQUIRE( query != nullptr ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( mtc::zmap{ { "||", mtc::array_zval{ "городской", "фонарь" } } }, {}, xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
         {
           SECTION( "entities are found with positions" )
           {
@@ -257,10 +242,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
       }
       SECTION( "* 'quote' query matches exact phrase" )
       {
-        if ( REQUIRE_NOTHROW( query = queries::GetRichQuery( { { "quote", mtc::array_zval{ "старый", "фонарь" } } },
-          MakeStats( {
-            { "старый", 0.3 },
-            { "фонарь", 0.4 } } ), xx, lp, fm ) ) && REQUIRE( query != nullptr ) )
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( mtc::zmap{ { "quote", mtc::array_zval{ "старый", "фонарь" } } }, {}, xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
         {
           SECTION( "entities are found with positions" )
           {
@@ -274,6 +257,7 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
               {
                 REQUIRE( abstract.entries.beg[0].limits.uMin == 14 );
                 REQUIRE( abstract.entries.beg[0].limits.uMax == 15 );
+                REQUIRE( abstract.entries.beg[0].spread.size() == 2 );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
@@ -281,6 +265,43 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
               auto  abstract = query->GetTuples( 2 );
 
               REQUIRE( abstract.dwMode == abstract.None );
+            }
+          }
+        }
+      }
+      SECTION( "* fuzzy query searches best entries using query quorum" )
+      {
+        if ( REQUIRE_NOTHROW( query = queries::BuildRichQuery( mtc::zmap{ { "fuzzy", mtc::array_zval{ "городской", "фонарь" } } },
+            MakeStats( { { "городской", 0.7 }, { "фонарь", 0.05 } } ), xx, lp, fieldMan ) )
+          && REQUIRE( query != nullptr ) )
+        {
+          SECTION( "entities are found with positions" )
+          {
+            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
+            {
+              auto  abstract = query->GetTuples( 1 );
+
+              REQUIRE( abstract.dwMode == abstract.Rich );
+              REQUIRE( abstract.nWords == 16 );
+              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              {
+                REQUIRE( abstract.entries.beg[0].limits.uMin == 10 );
+                REQUIRE( abstract.entries.beg[0].limits.uMax == 12 );
+                REQUIRE( abstract.entries.beg[0].spread.size() == 2 );
+              }
+            }
+            if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
+            {
+              auto  abstract = query->GetTuples( 3 );
+
+              REQUIRE( abstract.dwMode == abstract.Rich );
+              REQUIRE( abstract.nWords == 2 );
+              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              {
+                REQUIRE( abstract.entries.beg[0].limits.uMin == 0 );
+                REQUIRE( abstract.entries.beg[0].limits.uMax == 0 );
+                REQUIRE( abstract.entries.beg[0].spread.size() == 1 );
+              }
             }
           }
         }
