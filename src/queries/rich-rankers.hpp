@@ -1,6 +1,7 @@
 # if !defined( __DelphiX_src_queries_rich_rankers_hpp__ )
 # define __DelphiX_src_queries_rich_rankers_hpp__
 # include "../context/formats.hpp"
+# include "field-set.hpp"
 # include <vector>
 
 namespace DelphiX {
@@ -14,12 +15,15 @@ namespace queries {
     std::vector<double>     fidWeight;
 
     TermRanker( const TermRanker& ) = delete;
+    TermRanker& operator=( const TermRanker& ) = delete;
   public:
     TermRanker() = default;
     TermRanker( TermRanker&& tr ):
       tagOffset( std::move( tr.tagOffset ) ),
       fidWeight( std::move( tr.fidWeight ) )  {}
+    TermRanker( const FieldSet&, const context::Lexeme&, double, bool strict );
 
+  // rank
     double  operator()( unsigned tag, uint8_t fid ) const;
     auto    GetRanker( const Slice<const textAPI::RankerTag>& ) const -> RichRanker;
   };
@@ -49,6 +53,38 @@ namespace queries {
   };
 
   // TermRanker inline implementation
+
+  TermRanker::TermRanker( const FieldSet& fds, const context::Lexeme& lex, double flo, bool fmatch )
+  {
+    for ( auto tag: fds )
+    {
+    // get tag relocation
+      if ( tagOffset.size() <= tag )
+        tagOffset.insert( tagOffset.end(), tag - tagOffset.size() + 1, uint32_t(-1) );
+      if ( tagOffset[tag] == uint32_t(-1) )
+        tagOffset[tag] = fidWeight.size();
+
+    // insert forms mapping
+      if ( fidWeight.size() <= tagOffset[tag] + 256 )
+        fidWeight.insert( fidWeight.end(), tagOffset[tag] + 256 - fidWeight.size(), -1.0 );
+
+    // fill default value
+      if ( fmatch )
+        std::fill( fidWeight.begin() + tagOffset[tag], fidWeight.begin() + tagOffset[tag] + 256, -1 );
+      else
+        std::fill( fidWeight.begin() + tagOffset[tag], fidWeight.begin() + tagOffset[tag] + 256, 0.5 * flo );
+
+      if ( lex.GetForms().empty() )
+      {
+        fidWeight[255 + tagOffset[tag]] = flo;
+      }
+        else
+      {
+        for ( auto fid: lex.GetForms() )
+          fidWeight[fid + tagOffset[tag]] = flo;
+      }
+    }
+  }
 
   inline  auto  TermRanker::operator()( unsigned tag, uint8_t fid ) const -> double
   {

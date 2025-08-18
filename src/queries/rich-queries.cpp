@@ -1,8 +1,11 @@
-# include "rich-queries.hpp"
-# include "base-queries.hpp"
+# include "../../queries/builder.hpp"
+//# include "base-queries.hpp"
 # include "rich-rankers.hpp"
+# include "query-tools.hpp"
+# include "field-set.hpp"
 # include "decompressor.hpp"
 # include "context/processor.hpp"
+# include <mtc/bitset.h>
 
 namespace DelphiX {
 namespace queries {
@@ -21,13 +24,13 @@ namespace queries {
       fmtBlock( fmt ) {}
 
     virtual Abstract  GetTuples( uint32_t );
-    virtual Abstract  GetChunks( uint32_t, uint32_t, const Slice<const RankerTag>& ) = 0;
+    virtual Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) = 0;
 
   protected:
-    uint32_t              entityId = 0;                       // the found entity
-    Abstract              abstract = {};
     mtc::api<IEntities>   fmtBlock;                           // formats and lengths
     IEntities::Reference  fmtRefer = { 0, { nullptr, 0 } };   // current formats position
+    uint32_t              entityId = 0;                       // the found entity
+    Abstract              abstract = {};
   };
 
  /*
@@ -46,7 +49,7 @@ namespace queries {
 
   // overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract  GetChunks( uint32_t, uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
 
   protected:
     mtc::api<IEntities> entBlock;
@@ -98,7 +101,7 @@ namespace queries {
 
   // IQuery overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract  GetChunks( uint32_t, uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
 
   protected:
     std::vector<KeyBlock>           blockSet;
@@ -126,18 +129,17 @@ namespace queries {
       unsigned                docFound = 0;
       Abstract                abstract = {};
 
-
-    public:
+    // methods
       auto  SearchDoc( uint32_t id ) -> uint32_t
       {
         if ( docFound >= id )
           return docFound;
         return abstract = {}, docFound = subQuery->SearchDoc( id );
       }
-      auto  GetChunks( uint32_t id, uint32_t nw, const Slice<const RankerTag>& ft ) -> const Abstract&
+      auto  GetChunks( uint32_t id, const Slice<const RankerTag>& ft ) -> const Abstract&
       {
         return abstract.dwMode == abstract.None && docFound == id ?
-          abstract = subQuery->GetChunks( id, nw, ft ) : abstract;
+          abstract = subQuery->GetChunks( id, ft ) : abstract;
       }
     };
 
@@ -156,11 +158,11 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t id ) override  {  return StrictSearch( id );  }
-    Abstract  GetChunks( uint32_t id, uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
 
   };
 
-  class RichQueryQuote final: public RichQueryArgs
+  class RichQueryOrder final: public RichQueryArgs
   {
     using RichQueryArgs::RichQueryArgs;
 
@@ -168,7 +170,32 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t id ) override {  return StrictSearch( id );  }
-    Abstract  GetChunks( uint32_t id, uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+
+  };
+
+  class RichQueryFuzzy final: public RichQueryArgs
+  {
+    using RichQueryArgs::RichQueryArgs;
+
+    implement_lifetime_control
+
+    // construction
+    RichQueryFuzzy( mtc::api<IEntities> fmt, double quo ): RichQueryArgs( fmt ),
+      quorum( quo ) {}
+
+    // overridables
+    uint32_t  SearchDoc( uint32_t id ) override;
+    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+
+    double    DistRange( int distance ) const
+    {
+      return distance >= 0 ?
+        0.05 + 0.95 * pow(cos(atan(fabs(distance / 5.0))), 3) :
+        0.05 + 0.85 * pow(cos(atan(fabs(distance / 5.0))), 3);
+    }
+  protected:
+    double  quorum;
 
   };
 
@@ -180,15 +207,46 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract  GetChunks( uint32_t, uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
 
   protected:
     std::vector<Abstract*>  selected;
   };
 
-  class RichQuorum: public GetByQuorum
+  class RichQueryField: public RichQueryBase
   {
-    Abstract  GetTuples( uint32_t ) override  {  return {};  }
+  public:
+  // construction
+    RichQueryField( mtc::api<IEntities>, const std::vector<unsigned>&, mtc::api<RichQueryBase> );
+
+    // overridables
+    uint32_t  SearchDoc( uint32_t id ) override;
+
+  protected:
+    mtc::api<RichQueryBase> subQuery;
+    std::vector<unsigned>   matchSet;
+    EntrySet                entryBuf[0x10000];
+
+  };
+
+  class RichQueryCover final: public RichQueryField
+  {
+    using RichQueryField::RichQueryField;
+
+    implement_lifetime_control
+
+  // overridables
+    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+  };
+
+  class RichQueryMatch final: public RichQueryField
+  {
+    using RichQueryField::RichQueryField;
+
+    implement_lifetime_control
+
+  // overridables
+    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
   };
 
   // RichQueryBase implementation
@@ -202,10 +260,11 @@ namespace queries {
       uint32_t  nWords;
       size_t    uCount = context::formats::Unpack( format,
         ::FetchFrom( fmtRefer.details.data(), nWords ), fmtRefer.details.size() );
+      auto&     report = GetChunks( tofind, { format, uCount } );
 
-      return GetChunks( tofind, nWords, { format, uCount } );
+      return report.nWords = nWords, report;
     }
-    return {};
+    return abstract = {};
   }
 
   // RichQueryTerm implementation
@@ -228,7 +287,7 @@ namespace queries {
   * For changed document id, unpack && return the entries and entry sets for given
   * format set
   */
-  Abstract  RichQueryTerm::GetChunks( uint32_t tofind, uint32_t nWords, const Slice<const RankerTag>& fmt )
+  Abstract& RichQueryTerm::GetChunks( uint32_t tofind, const Slice<const RankerTag>& fmt )
   {
     if ( docRefer.uEntity == tofind && abstract.dwMode == Abstract::None )
     {
@@ -237,7 +296,7 @@ namespace queries {
         UnpackEntries<LoadForm>( entryBuf, pointBuf, docRefer.details, tmRanker.GetRanker( fmt ), 0 );
 
       if ( numEnt != 0 )
-        abstract = { Abstract::Rich, nWords, entryBuf, entryBuf + numEnt };
+        abstract = { Abstract::Rich, 0, entryBuf, entryBuf + numEnt };
     }
     return abstract;
   }
@@ -271,7 +330,7 @@ namespace queries {
     return abstract = {}, entityId = uFound;
   }
 
-  Abstract  RichMultiTerm::GetChunks( uint32_t getdoc, uint32_t nwords, const Slice<const RankerTag>& fmt )
+  Abstract& RichMultiTerm::GetChunks( uint32_t getdoc, const Slice<const RankerTag>& fmt )
   {
     if ( abstract.entries.empty() )
     {
@@ -288,7 +347,7 @@ namespace queries {
         return abstract = {};
 
       if ( nfound == 1 )
-        return abstract = { Abstract::Rich, nwords, selected.front() };
+        return abstract = { Abstract::Rich, 0, selected.front() };
 
     // merge found tuples
       for ( auto outend = outptr + std::size(entryBuf); outptr != outend; ++outptr )
@@ -311,7 +370,7 @@ namespace queries {
           if ( selected[i].beg->limits.uMin == outptr->limits.uMin )
             ++selected[i].beg;
       }
-      return abstract = { Abstract::Rich, nwords, { entryBuf, outptr } };
+      return abstract = { Abstract::Rich, 0, { entryBuf, outptr } };
     }
     return getdoc == entityId ? abstract : abstract = {};
   }
@@ -367,7 +426,7 @@ namespace queries {
   * Creates best ranked corteges of entries for '&' operator with no additional
   * checks for context except the checks provided by nested elements
   */
-  Abstract  RichQueryAll::GetChunks( uint32_t udocid, uint32_t nwords, const Slice<const RankerTag>& format )
+  Abstract& RichQueryAll::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -376,8 +435,8 @@ namespace queries {
 
     // request all the queries in '&' operator; not found queries force to return {}
       for ( auto& next: querySet )
-        if ( next.GetChunks( udocid, nwords, format ).entries.empty() )
-          return {};
+        if ( next.GetChunks( udocid, format ).entries.empty() )
+          return abstract = {};
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
@@ -421,7 +480,7 @@ namespace queries {
                      ppos < next.abstract.entries.beg->spread.pend; )
           {
             if ( outPos == std::end(pointBuf) )
-              return abstract = { Abstract::Rich, nwords, { entryBuf, outEnt } };
+              return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
             *outPos++ = *ppos++;
           }
 
@@ -432,14 +491,14 @@ namespace queries {
 
         *outEnt++ = { limits, weight, center, { outOrg, outPos } };
       }
-      abstract = { Abstract::Rich, nwords, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
     }
     return abstract;
   }
 
-  // RichQueryQuote implementation
+  // RichQueryOrder implementation
 
-  Abstract  RichQueryQuote::GetChunks( uint32_t udocid, uint32_t nwords, const Slice<const RankerTag>& format )
+  Abstract& RichQueryOrder::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -448,8 +507,8 @@ namespace queries {
 
     // request all the queries in '&' operator; not found queries force to return {}
       for ( auto& next: querySet )
-        if ( next.GetChunks( udocid, nwords, format ).entries.empty() )
-          return {};
+        if ( next.GetChunks( udocid, format ).entries.empty() )
+          return abstract = {};
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
@@ -477,17 +536,16 @@ namespace queries {
           if ( rent.empty() )
           {
             if ( outEnt != entryBuf )
-              return { Abstract::Rich, nwords, { entryBuf, outEnt } };
-            return {};
+              return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+            return abstract = {};
           }
 
         // get next position
-          if ( nindex == 0 )
+          if ( nindex++ == 0 )
           {
             weight = 1.0 - (ctsumm = rent.beg->weight);
             center = (uLower = cpos) * rent.beg->weight;
             begpos = cpos - next.keyOrder;
-            nindex = 1;
           }
             else
           if ( cpos == begpos + next.keyOrder)
@@ -495,7 +553,6 @@ namespace queries {
             weight *= 1.0 - rent.beg->weight;
             center += cpos * rent.beg->weight;
             ctsumm += rent.beg->weight;
-            ++nindex;
           }
             else
           {
@@ -511,13 +568,132 @@ namespace queries {
           *outPos++ = *next.abstract.entries.beg->spread.pbeg;
             ++next.abstract.entries.beg;
           if ( outPos == std::end(pointBuf) )
-            return { Abstract::Rich, nwords, { entryBuf, outEnt } };
+            return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
         }
 
         *outEnt++ = { { uLower, unsigned(uLower + querySet.size() - 1) }, 1.0 - weight, center / ctsumm,
           { outPos - querySet.size(), outPos } };
       }
-      abstract = { Abstract::Rich, nwords, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+    }
+    return abstract;
+  }
+
+  // RichQueryFuzzy implementation
+
+  uint32_t  RichQueryFuzzy::SearchDoc( uint32_t tofind )
+  {
+    double    weight = 0.0;
+    uint32_t  ufound = uint32_t(-1);
+    size_t    nstart = 0;
+
+    if ( (tofind = std::max( tofind, entityId )) == uint32_t(-1) )
+      return uint32_t(-1);
+
+    for ( abstract = {}; nstart != querySet.size(); ++nstart )
+    {
+      auto&    rquery = querySet[nstart];
+      uint32_t nextId = rquery.SearchDoc( tofind );
+
+    // check if next is found, continue search
+      if ( nextId == tofind )
+      {
+        if ( (weight += rquery.keyRange) >= quorum )
+          ufound = std::min( ufound, nextId );
+        continue;
+      }
+
+    // next is not found; check if skip is possible
+      if ( weight + rquery.leastSum < quorum )
+      {
+        weight = 0.0;
+        nstart = -1;
+        ++tofind;
+        ufound = uint32_t(-1);
+      }
+    }
+
+    return entityId = ufound;
+  }
+
+  Abstract& RichQueryFuzzy::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
+  {
+    if ( abstract.dwMode != abstract.Rich )
+    {
+      auto  outEnt = std::begin(entryBuf);
+      auto  outPos = std::begin(pointBuf);
+
+    // request all the queries in 'fuzzy operator; by the request, quorum may be accessed
+    // with this query and at least one element is available and provides the quorum
+      for ( auto& next: querySet )
+        next.GetChunks( udocid, format );
+
+    // list elements and select the best tuples for each possible compact entry;
+    // shrink overlapping entries to suppress far and low-weight entries
+      while ( outEnt != std::end(entryBuf) && outPos != std::end(pointBuf) )
+      {
+        auto  center = double(0);
+        auto  ctsumm = double(0);
+        auto  uLower = unsigned(-1);
+        auto  uUpper = unsigned(0);
+        auto  scalar = double(0.0);
+        auto  length = double(0.0);
+        auto  weight = double{};
+        auto  outOrg = outPos;
+        int   despos;                 // desired position
+
+        // search exact sequence of elements
+        for ( auto& rquery: querySet )
+        {
+          auto& rentry = rquery.abstract.entries;
+
+        // check if has the entries; use entries weight in possible quorum
+          if ( rentry.size() != 0 )
+          {
+            despos = uLower == unsigned(-1) ? rentry.beg->center : despos + rquery.keyOrder;
+            uLower = std::min( uLower, rentry.beg->limits.uMin );
+            uUpper = std::max( uUpper, rentry.beg->limits.uMax );
+            scalar += rentry.beg->weight * DistRange( rentry.beg->center - despos );
+            center += rentry.beg->weight * rentry.beg->center;
+            ctsumm += rentry.beg->weight;
+            length += rquery.keyRange;
+          }
+        }
+
+        // check if element is found
+        if ( uLower != unsigned(-1) )
+        {
+          bool  useEnt = length >= quorum && (weight = scalar / length) >= 0.01;
+
+          if ( useEnt && outEnt != entryBuf && outEnt[-1].limits.uMax >= uLower )
+          {
+            if ( (useEnt = (outEnt[-1].weight < weight)) == true )
+              outOrg = outPos = (EntryPos*)(--outEnt)->spread.pbeg;
+          }
+
+          // skip to the next possible tuple
+          for ( auto& rquery: querySet )
+          {
+            auto  rentry = rquery.abstract.entries;
+
+            if ( rentry.size() != 0 )
+            {
+              if ( useEnt )
+              {
+                for ( auto beg = rentry.beg->spread.pbeg; beg != rentry.beg->spread.pend && outPos != std::end(pointBuf); )
+                  *outPos++ = *beg++;
+              }
+
+              if ( rquery.abstract.entries.beg->limits.uMin == uLower )
+                ++rquery.abstract.entries.beg;
+            }
+          }
+
+          if ( useEnt )
+            *outEnt++ = { { uLower, uUpper }, weight, center / ctsumm, { outOrg, outPos } };
+        } else break;
+      }
+      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
     }
     return abstract;
   }
@@ -542,7 +718,7 @@ namespace queries {
     return entityId = uFound;
   }
 
-  Abstract  RichQueryAny::GetChunks( uint32_t udocid, uint32_t nwords, const Slice<const RankerTag>& format )
+  Abstract& RichQueryAny::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -555,7 +731,7 @@ namespace queries {
 
     // request all the queries in '&' operator; not found queries force to return {}
       for ( auto& next: querySet )
-        if ( next.GetChunks( udocid, nwords, format ).entries.size() != 0 )
+        if ( next.GetChunks( udocid, format ).entries.size() != 0 )
           selected[nFound++] = &next.abstract;
 
     // list elements and select the best tuples for each possible compact entry;
@@ -574,8 +750,8 @@ namespace queries {
           // select lower element
             if ( plower != nullptr )
             {
-              int rcmp = (next.beg->limits.uMin > plower->entries.beg->limits.uMin)
-                       - (next.beg->limits.uMin < plower->entries.beg->limits.uMin);
+              int  rcmp = (next.beg->limits.uMin > plower->entries.beg->limits.uMin)
+                        - (next.beg->limits.uMin < plower->entries.beg->limits.uMin);
 
               if ( rcmp < 0 || (rcmp == 0 && next.beg->weight > plower->entries.beg->weight) )
                 plower = selected[i];
@@ -584,7 +760,7 @@ namespace queries {
 
       // check if found
         if ( plower == nullptr )
-          return abstract = { Abstract::Rich, nwords, { entryBuf, outEnt } };
+          return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
 
       // create output entry
         ulower = (*outEnt++ = *plower->entries.beg++).limits.uMin;
@@ -594,7 +770,89 @@ namespace queries {
           if ( selected[i]->entries.size() != 0 && selected[i]->entries.beg->limits.uMin == ulower )
             ++selected[i]->entries.beg;
       }
-      abstract = { Abstract::Rich, nwords, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+    }
+    return abstract;
+  }
+
+// RichQueryField implementation
+
+  RichQueryField::RichQueryField(
+    mtc::api<IEntities>           fmt,
+    const std::vector<unsigned>&  fds,
+    mtc::api<RichQueryBase>       sub ): RichQueryBase( fmt ),
+      subQuery( sub )
+  {
+    for ( auto id: fds )
+      mtc::bitset_set( matchSet, id );
+  }
+
+  auto  RichQueryField::SearchDoc( uint32_t id ) -> uint32_t
+  {
+    return entityId < id ? abstract = {},
+      entityId = subQuery->SearchDoc( id ) : entityId;
+  }
+
+  // RichQueryCover implementation
+
+  Abstract& RichQueryCover::GetChunks( uint32_t id, const Slice<const RankerTag>& ft )
+  {
+    if ( id == entityId && abstract.dwMode != abstract.Rich )
+    {
+      auto  subEnt = subQuery->GetChunks( id, ft );
+      auto  tagBeg = ft.data();
+      auto  tagEnd = ft.data() + ft.size();
+      auto  outPtr = entryBuf;
+
+      for ( ; subEnt.entries.beg != subEnt.entries.end && tagBeg != tagEnd; ++subEnt.entries.beg )
+      {
+        while ( tagBeg != tagEnd && tagBeg->uUpper < subEnt.entries.beg->limits.uMax && !mtc::bitset_get( matchSet, tagBeg->format ) )
+          ++tagBeg;
+        if ( tagBeg == tagEnd )
+          break;
+        while ( subEnt.entries.beg != subEnt.entries.end && subEnt.entries.beg->limits.uMin < tagBeg->uLower )
+          ++subEnt.entries.beg;
+        if ( subEnt.entries.beg == subEnt.entries.end )
+          break;
+        if ( tagBeg->uLower <= subEnt.entries.beg->limits.uMin
+          && tagBeg->uUpper >= subEnt.entries.beg->limits.uMax )
+            *outPtr++ = *subEnt.entries.beg;
+      }
+
+      if ( outPtr != entryBuf )
+        abstract = { Abstract::Rich, 0, { entryBuf, outPtr } };
+    }
+    return abstract;
+  }
+
+  // RichQueryMatch implementation
+
+  Abstract& RichQueryMatch::GetChunks( uint32_t id, const Slice<const RankerTag>& ft )
+  {
+    if ( id == entityId && abstract.dwMode != abstract.Rich )
+    {
+      auto  subEnt = subQuery->GetChunks( id, ft );
+      auto  tagBeg = ft.data();
+      auto  tagEnd = ft.data() + ft.size();
+      auto  outPtr = entryBuf;
+
+      for ( ; subEnt.entries.beg != subEnt.entries.end && tagBeg != tagEnd; ++subEnt.entries.beg )
+      {
+        while ( tagBeg != tagEnd && tagBeg->uLower < subEnt.entries.beg->limits.uMin && !mtc::bitset_get( matchSet, tagBeg->format ) )
+          ++tagBeg;
+        if ( tagBeg == tagEnd )
+          break;
+        while ( subEnt.entries.beg != subEnt.entries.end && subEnt.entries.beg->limits.uMin < tagBeg->uLower )
+          ++subEnt.entries.beg;
+        if ( subEnt.entries.beg == subEnt.entries.end )
+          break;
+        if ( tagBeg->uLower == subEnt.entries.beg->limits.uMin
+          && tagBeg->uUpper == subEnt.entries.beg->limits.uMax )
+            *outPtr++ = *subEnt.entries.beg;
+      }
+
+      if ( outPtr != entryBuf )
+        abstract = { Abstract::Rich, 0, { entryBuf, outPtr } };
     }
     return abstract;
   }
@@ -608,19 +866,20 @@ namespace queries {
     const uint32_t                  total;
     const mtc::api<IContentsIndex>& index;
     const context::Processor&       lproc;
-    const FieldHandler&             fdset;
+    const FieldHandler&             fdhan;
     mtc::api<IEntities>             mkups;
 
-  protected:
-    struct Operator: std::pair<std::string, const mtc::zval&>
+    struct QuerySettings
     {
-      using std::pair<std::string, const mtc::zval&>::pair;
+      FieldSet  fieldSet;
+      unsigned  uContext = -1;
+      bool      isStrict = false;
 
-      bool  operator == ( const char* key ) const
-        {  return first == key;  }
-      auto  Arguments() const -> const mtc::array_zval&;
-      auto  GetString() const -> const mtc::widestr;
+      auto  SetStrict( bool strict ) const -> QuerySettings
+        {  return strict == isStrict ? *this : QuerySettings{ fieldSet, uContext, strict };  }
     };
+
+  protected:
     struct SubQuery
     {
       mtc::api<RichQueryBase> query;
@@ -630,67 +889,83 @@ namespace queries {
   public:
     Builder( const mtc::zmap& tm, const mtc::api<IContentsIndex>& dx, const context::Processor& lp, const FieldHandler& fs ):
       terms( tm ),
-      zstat( tm.get_zmap( "stats", {} ) ),
-      total( terms.get_word32( "total", 0 ) ),
+      zstat( tm.get_zmap( "terms-range-map", {} ) ),
+      total( terms.get_word32( "collection-size", 0 ) ),
       index( dx ),
       lproc( lp ),
-      fdset( fs ),
+      fdhan( fs ),
       mkups( index->GetKeyBlock( "fmt" ) )  {}
 
-    auto  BuildQuery( const mtc::zval& ) const -> SubQuery;
-
-    auto  GetCommand( const mtc::zval& ) const -> Operator;
+    auto  BuildQuery( const mtc::zval&, const QuerySettings& ) const -> SubQuery;
   template <bool Forced, class Output>
-    auto  CreateArgs( mtc::api<Output>, const mtc::array_zval& ) const -> SubQuery;
-    auto  CreateWord( const mtc::widestr& ) const -> SubQuery;
-    auto  MakeRanker( double flbase, const context::Lexeme& ) const -> TermRanker;
+    auto  CreateArgs( mtc::api<Output>, const mtc::array_zval&, const QuerySettings& ) const -> SubQuery;
+    auto  CreateWord( const mtc::widestr&, const QuerySettings& ) const -> SubQuery;
     auto  GetTermIdf( const mtc::widestr& ) const -> double;
+    auto  LoadFields( const mtc::zval& ) const -> FieldSet;
   };
 
-  auto  Builder::BuildQuery( const mtc::zval& query ) const -> SubQuery
+  auto  Builder::BuildQuery( const mtc::zval& query, const QuerySettings& sets ) const -> SubQuery
   {
-    auto  op = GetCommand( query );
+    auto  op = GetOperator( query );
 
     if ( op == "&&" )
-      return CreateArgs<true> ( mtc::api( new RichQueryAll( mkups ) ), op.Arguments() );
+      return CreateArgs<true> ( mtc::api( new RichQueryAll( mkups ) ), op.GetVector(), sets );
     if ( op == "||" )
-      return CreateArgs<false>( mtc::api( new RichQueryAny( mkups ) ), op.Arguments() );
+      return CreateArgs<false>( mtc::api( new RichQueryAny( mkups ) ), op.GetVector(), sets );
     if ( op == "quote" || op == "order" )
-      return CreateArgs<true> ( mtc::api( new RichQueryQuote( mkups ) ), op.Arguments() );
+    {
+      return CreateArgs<true> ( mtc::api( new RichQueryOrder( mkups ) ), op.GetVector(),
+        sets.SetStrict( op == "quote" ) );
+    }
+    if ( op == "fuzzy" )
+    {
+      auto  subset = std::vector<SubQuery>{};
+      auto  quorum = 0.0;
+      auto  addone = SubQuery{};
+      auto  pquery = mtc::api<RichQueryFuzzy>();
+
+    // create subquery list
+      for ( auto& next: op.GetVector() )
+        if ( (addone = BuildQuery( next, sets )).query != nullptr )
+        {
+          subset.push_back( addone );
+          quorum += addone.range;
+        }
+
+    // create and fill the query
+      pquery = new RichQueryFuzzy( mkups, 0.7 * quorum );
+
+      for ( auto& next: subset )
+        pquery->AddQueryNode( next.query, next.range );
+
+      return { pquery.ptr(), 0.7 * quorum };
+    }
+    if ( op == "cover" || op == "match" )
+    {
+      auto  pnames = op.GetStruct().get( "field" );
+      auto  pquery = op.GetStruct().get( "query" );
+      auto  fields = FieldSet();
+      auto  squery = SubQuery();
+
+      if ( pnames != nullptr )  fields = std::move( LoadFields( *pnames ) );
+        else throw std::invalid_argument( "missing 'field' as field limitation" );
+
+      if ( pquery != nullptr )  squery = BuildQuery( *pquery, sets );
+        else throw std::invalid_argument( "missing 'query' as limited object" );
+
+      if ( op == "match" )
+        return { new RichQueryMatch( mkups, fields, squery.query ), squery.range };
+      else
+        return { new RichQueryCover( mkups, fields, squery.query ), squery.range };
+    }
     if ( op == "word" )
-      return CreateWord( op.GetString() );
+      return CreateWord( op.GetString(), sets );
 
     throw std::logic_error( "operator not supported" );
   }
 
-  auto  Builder::GetCommand( const mtc::zval& query ) const -> Operator
-  {
-    switch ( query.get_type() )
-    {
-      case mtc::zval::z_charstr:
-      case mtc::zval::z_widestr:
-        return { "word", query };
-      case mtc::zval::z_zmap:
-      {
-        auto& zmap = *query.get_zmap();
-        auto  pbeg = zmap.begin();
-        auto  xend = zmap.begin();
-
-        if ( pbeg == zmap.end() )
-          throw std::invalid_argument( "invalid (empty) query passed" );
-        if ( ++xend != zmap.end() )
-          throw std::invalid_argument( "query has more than one operator entries" );
-        if ( !pbeg->first.is_charstr() )
-          throw std::invalid_argument( "query operator key has to be string" );
-        return { pbeg->first.to_charstr(), pbeg->second };
-      }
-      default:
-        throw std::invalid_argument( "invalid query type" );
-    }
-  }
-
   template <bool Forced, class Output>
-  auto  Builder::CreateArgs( mtc::api<Output> to, const mtc::array_zval& args ) const -> SubQuery
+  auto  Builder::CreateArgs( mtc::api<Output> to, const mtc::array_zval& args, const QuerySettings& fds ) const -> SubQuery
   {
     std::vector<SubQuery> queries;
     SubQuery              created;
@@ -701,7 +976,7 @@ namespace queries {
       fWeight = 0.0;
 
       for ( auto& next: args )
-        if ( (created = BuildQuery( next )).query != nullptr )
+        if ( (created = BuildQuery( next, fds )).query != nullptr )
         {
           fWeight = std::max( fWeight, created.range );
           queries.push_back( std::move( created ) );
@@ -712,7 +987,7 @@ namespace queries {
       fWeight = 1.0;
 
       for ( auto& next: args )
-        if ( (created = BuildQuery( next )).query != nullptr )
+        if ( (created = BuildQuery( next, fds )).query != nullptr )
         {
           fWeight = std::min( fWeight, created.range );
           queries.push_back( std::move( created ) );
@@ -731,7 +1006,7 @@ namespace queries {
     return { to.ptr(), fWeight };
   }
 
-  auto  Builder::CreateWord( const mtc::widestr& str ) const -> SubQuery
+  auto  Builder::CreateWord( const mtc::widestr& str, const QuerySettings& sets ) const -> SubQuery
   {
     auto  lexemes = lproc.Lemmatize( str );
     auto  ablocks = std::vector<std::pair<mtc::api<IEntities>, TermRanker>>();
@@ -745,7 +1020,7 @@ namespace queries {
   // request terms for the word
     for ( auto& lexeme: lexemes )
       if ( (pkblock = index->GetKeyBlock( lexeme )) != nullptr )
-        ablocks.emplace_back( pkblock, MakeRanker( fWeight, lexeme ) );
+        ablocks.emplace_back( pkblock, TermRanker( sets.fieldSet, lexeme, fWeight, false ) );
 
   // if nothing found, return nullptr
     if ( ablocks.size() == 0 )
@@ -757,55 +1032,50 @@ namespace queries {
     return { new RichQueryTerm( mkups, ablocks.front().first, std::move( ablocks.front().second ) ), fWeight };
   }
 
-  auto  Builder::MakeRanker( double flbase, const context::Lexeme& lexeme ) const -> TermRanker
-  {
-    TermRanker  ranker;
-
-    return ranker;
-  }
-
   auto  Builder::GetTermIdf( const mtc::widestr& str ) const -> double
   {
     auto  pstats = zstat.get_zmap( str );
     auto  prange = pstats != nullptr ? pstats->get_double( "range" ) : nullptr;
 
-    if ( prange != nullptr )  return *prange;
-      else
-    if ( pstats == nullptr )  return -1.0;
-      else
+    if ( prange != nullptr )
+      return *prange;
+
+    if ( pstats == nullptr )
+      return -1.0;
+
+    throw std::invalid_argument( total == 0 ?
+      "terms do not have 'total' index document count" : "invalid 'terms' format" );
+  }
+
+  auto  Builder::LoadFields( const mtc::zval& fds ) const -> FieldSet
+  {
+    auto  fields = FieldSet();
+
+    switch ( fds.get_type() )
     {
-      if ( total == 0 )
-        throw std::invalid_argument( "terms do not have 'total' index document count" );
-      throw std::invalid_argument( "invalid 'terms' format" );
+      case mtc::zval::z_charstr:
+        return { fdhan, *fds.get_charstr() };
+      case mtc::zval::z_array_charstr:
+        return { fdhan, *fds.get_array_charstr() };
+      default:
+        throw std::invalid_argument( "invalid 'field' format" );
     }
   }
 
-  // Builder::Operator implementation
-
-  auto  Builder::Operator::Arguments() const -> const mtc::array_zval&
-  {
-    if ( second.get_type() != mtc::zval::z_array_zval )
-      throw std::invalid_argument( "operator value has to point to array" );
-    return *second.get_array_zval();
-  }
-
-  auto  Builder::Operator::GetString() const -> const mtc::widestr
-  {
-    if ( second.get_type() == mtc::zval::z_charstr )
-      return codepages::mbcstowide( codepages::codepage_utf8, *second.get_charstr() );
-    if ( second.get_type() == mtc::zval::z_widestr )
-      return *second.get_widestr();
-    throw std::invalid_argument( "Operator has to handle string" );
-  }
-
-  auto  GetRichQuery(
-    const mtc::zmap&                query,
+  auto  BuildRichQuery(
+    const mtc::zval&                query,
     const mtc::zmap&                terms,
     const mtc::api<IContentsIndex>& index,
     const context::Processor&       lproc,
     const FieldHandler&             fdset ) -> mtc::api<IQuery>
   {
-    return Builder( terms, index, lproc, fdset ).BuildQuery( query ).query.ptr();
+    auto  zterms( terms );
+
+    if ( zterms.empty() )
+      zterms = RankQueryTerms( LoadQueryTerms( query ), index, lproc );
+
+    return Builder( zterms, index, lproc, fdset )
+      .BuildQuery( query, { fdset } ).query.ptr();
   }
 
 }}

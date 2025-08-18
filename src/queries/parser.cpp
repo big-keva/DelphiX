@@ -245,7 +245,7 @@ template <class T>
         return mtc::zmap{ { divide.to_string(), std::move( subset ) } };
       }
 
-      /*
+     /*
       * Проверить одиночное слово
       */
       if ( ptrend - ptrtop == 1 )
@@ -286,7 +286,7 @@ template <class T>
       if ( subset.size() == 1 )
         return subset.front();
 
-      return mtc::zmap{ { "near", std::move( subset ) } };
+      return mtc::zmap{ { "fuzzy", std::move( subset ) } };
     }
     return {};
   }
