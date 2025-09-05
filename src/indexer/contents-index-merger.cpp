@@ -7,8 +7,8 @@ namespace DelphiX {
 namespace indexer {
 namespace fusion {
 
-  using IEntityIterator = IContentsIndex::IEntityIterator;
-  using IRecordIterator = IContentsIndex::IRecordIterator;
+  using IEntityIterator = IContentsIndex::IEntitiesList;
+  using IRecordIterator = IContentsIndex::IContentsList;
   using EntityReference = IContentsIndex::IEntities::Reference;
 
   class EntityIterator
@@ -19,7 +19,7 @@ namespace fusion {
 
   public:
     EntityIterator( const mtc::api<IContentsIndex>& contentsIndex ):
-      iterator( contentsIndex->GetEntityIterator( "" ) ),
+      iterator( contentsIndex->ListEntities( "" ) ),
       curValue( iterator->Curr() ),
       entityId( curValue != nullptr ? curValue->GetId() : EntityId() ) {}
 
@@ -33,14 +33,14 @@ namespace fusion {
 
   };
 
-  class RecordIterator
+  class LexemeIterator
   {
     mtc::api<IRecordIterator> iterator;
     std::string               curValue;
 
   public:
-    RecordIterator( const mtc::api<IContentsIndex>& contentsIndex ):
-      iterator( contentsIndex->GetRecordIterator() ),
+    LexemeIterator( const mtc::api<IContentsIndex>& contentsIndex ):
+      iterator( contentsIndex->ListContents() ),
       curValue( iterator->Curr() ) {}
 
   public:
@@ -79,14 +79,13 @@ namespace fusion {
 
   };
 
-  auto  MergeChains(
+  auto  MergeSimple(
     mtc::api<mtc::IByteStream>      output,
     std::vector<EntityReference>&   buffer,
     const std::vector<MapEntities>& blocks ) -> std::pair<uint32_t, uint32_t>
   {
     uint32_t  length = 0;
     uint32_t  uOldId = 0;
-
 
     for ( auto& block: blocks )
     {
@@ -99,7 +98,48 @@ namespace fusion {
         {
           if ( buffer.size() == buffer.capacity() )
             buffer.reserve( buffer.capacity() + 0x10000 );
+          buffer.push_back( { mapped, entry.details } );
+        }
+      }
+    }
 
+    // check if any objects in a buffer, resort, serialize and return the length
+    std::sort( buffer.begin(), buffer.end(), []( const EntityReference& a, const EntityReference& b )
+      {  return a.uEntity < b.uEntity; } );
+
+    for ( auto& reference: buffer )
+    {
+      auto  diffId = reference.uEntity - uOldId - 1;
+
+      if ( ::Serialize( output.ptr(), diffId ) == nullptr )
+        throw std::runtime_error( "Failed to serialize entities" );
+
+      length += ::GetBufLen( diffId );
+      uOldId = reference.uEntity;
+    }
+
+    return { buffer.size(), length };
+  }
+
+  auto  MergeChains(
+    mtc::api<mtc::IByteStream>      output,
+    std::vector<EntityReference>&   buffer,
+    const std::vector<MapEntities>& blocks ) -> std::pair<uint32_t, uint32_t>
+  {
+    uint32_t  length = 0;
+    uint32_t  uOldId = 0;
+
+    for ( auto& block: blocks )
+    {
+      uint32_t  mapped;
+
+      // list all the references in the block
+      for ( auto entry = block.entityBlock->Find( 0 ); entry.uEntity != uint32_t(-1); entry = block.entityBlock->Find( 1 + entry.uEntity ) )
+      {
+        if ( (mapped = block.mapEntities->at( entry.uEntity )) != uint32_t(-1) )
+        {
+          if ( buffer.size() == buffer.capacity() )
+            buffer.reserve( buffer.capacity() + 0x10000 );
           buffer.push_back( { mapped, entry.details } );
         }
       }
@@ -133,15 +173,16 @@ namespace fusion {
     using Entity = dynamic::EntityTable<std::allocator<char>>::Entity;
 
     auto  iterators = std::vector<EntityIterator>();
-    auto  outStream = storage->Entities();
     auto  selectSet = std::vector<size_t>( indices.size() );
+    auto  entityStm = storage->Entities();
+    auto  bundleStm = storage->Packages();
 
   // create iterators list
     for ( auto& next: indices )
       iterators.emplace_back( next );
 
   // set zero document
-    if ( Entity( std::allocator<char>(), uint32_t(-1) ).Serialize( outStream.ptr() ) == nullptr )
+    if ( Entity( std::allocator<char>() ).Serialize( entityStm.ptr() ) == nullptr )
       throw std::runtime_error( "Failed to serialize entities" );
 
     for ( auto entityId = uint32_t(1); ; )
@@ -172,11 +213,23 @@ namespace fusion {
     // check if no more entities
       if ( nCount != 0 )
       {
-        if ( Entity( std::allocator<char>(),
-          iterators[iFresh].Curr(),
-          entityId,
-          iterators[iFresh]->GetVersion(),
-          iterators[iFresh]->GetExtra(), nullptr ).Serialize( outStream.ptr() ) == nullptr )
+        auto  bundlePos = int64_t(-1);
+        auto  bundlePtr = mtc::api<const mtc::IByteBuffer>();
+
+        if ( bundleStm != nullptr && (bundlePtr = iterators[iFresh]->GetBundle()) != nullptr )
+          bundlePos = bundleStm->Put( bundlePtr->GetPtr(), bundlePtr->GetLen() );
+
+        if ( bundlePos == -1 )
+        {
+          int i = 0;
+        }
+
+        if ( Entity( std::allocator<char>() )
+          .SetId( iterators[iFresh].Curr() )
+          .SetIndex( entityId )
+          .SetExtra( iterators[iFresh]->GetExtra() )
+          .SetPackPos( bundlePos )
+          .SetVersion( iterators[iFresh]->GetVersion() ).Serialize( entityStm.ptr() ) == nullptr )
         {
           throw std::runtime_error( "Failed to serialize entities" );
         }
@@ -198,8 +251,8 @@ namespace fusion {
   void  ContentsMerger::MergeContents()
   {
     auto  contents  = storage->Contents();
-    auto  chains    = storage->Chains();
-    auto  iterators = std::vector<RecordIterator>();
+    auto  chains    = storage->Linkages();
+    auto  iterators = std::vector<LexemeIterator>();
     auto  selectSet = std::vector<size_t>( indices.size() );
     auto  refVector = std::vector<EntityReference>( 0x100000 );
     auto  radixTree = mtc::radix::tree<RadixLink>();
@@ -240,7 +293,11 @@ namespace fusion {
 
         refVector.resize( 0 );
 
-        if ( (mergeStat = MergeChains( chains, refVector, blockList )).second != 0 )
+        mergeStat = blockList.front().entityBlock->Type() == 0 ?
+          MergeSimple( chains, refVector, blockList ) :
+          MergeChains( chains, refVector, blockList );
+
+        if ( mergeStat.second != 0 )
         {
           keyRecord.bkType = blockList.front().entityBlock->Type();
           keyRecord.uCount = mergeStat.first;

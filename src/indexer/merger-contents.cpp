@@ -4,6 +4,7 @@
 # include "override-entities.hpp"
 # include "index-layers.hpp"
 # include "patch-table.hpp"
+# include "object-holders.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <condition_variable>
 # include <shared_mutex>
@@ -36,7 +37,7 @@ namespace fusion  {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView& ) -> mtc::api<const IEntity> override;
+      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId,
       const StrView& ) -> mtc::api<const IEntity> override;
 
@@ -44,13 +45,11 @@ namespace fusion  {
     auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
-    auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-
-    auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override;
@@ -210,7 +209,8 @@ namespace fusion  {
     return output->DelEntity( id );
   }
 
-  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>,
+    const StrView&, const StrView& ) -> mtc::api<const IEntity>
   {
     throw std::logic_error( "merger::SetEntity(...) must not be called" );
   }
@@ -276,9 +276,15 @@ namespace fusion  {
     return output != nullptr ? output->GetKeyStats( key ) : getKeyStats( key );
   }
 
+  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  {
+    return listContents( key, MakeObjectHolder( mtc::api( (const Iface*)this ),
+      std::move( mtc::make_shared_lock( swLock ) ) ) );
+  }
+
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
   {
-    std::unique_lock<std::mutex>  exlock( s_lock );
+    auto  exlock = mtc::make_unique_lock( s_lock );
       s_wait.wait( exlock, [&](){  return serial != nullptr;  } );
     return serial;
   }

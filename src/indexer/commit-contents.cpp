@@ -32,7 +32,7 @@ namespace commit  {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView& ) -> mtc::api<const IEntity> override;
+      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId,
       const StrView& ) -> mtc::api<const IEntity> override;
 
@@ -40,13 +40,11 @@ namespace commit  {
     auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
-    auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-
-    auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override;
@@ -198,7 +196,8 @@ namespace commit  {
     return output->DelEntity( id );
   }
 
-  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>,
+    const StrView&, const StrView& ) -> mtc::api<const IEntity>
   {
     throw std::logic_error( "commit::SetEntity(...) must not be called" );
   }
@@ -264,9 +263,19 @@ namespace commit  {
     return (output != nullptr ? output : source)->GetKeyStats( key );
   }
 
+  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  {
+    return interlocked( mtc::make_shared_lock( swLock ), [&]()
+      {
+        return source != nullptr ?
+          source->ListContents( key ) :
+          output->ListContents( key );
+      } );
+  }
+
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
   {
-    std::unique_lock<std::mutex>  exlock( s_lock );
+    auto  exlock = mtc::make_unique_lock( s_lock );
       s_wait.wait( exlock, [&](){  return serial != nullptr;  } );
     return serial;
   }

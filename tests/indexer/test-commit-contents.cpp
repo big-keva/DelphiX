@@ -16,8 +16,8 @@ class MockBuffer: public mtc::IByteBuffer
 
   const char* GetPtr() const override {  return "";  }
   size_t      GetLen() const override {  return 0;  }
-  int         SetBuf( const void*, size_t ) override {  throw std::logic_error( "not implemented" );  }
-  int         SetLen( size_t ) override {  throw std::logic_error( "not implemented" );  }
+  int         SetBuf( const void*, size_t ) override {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+  int         SetLen( size_t ) override {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 };
 
 class MockPatch: public IStorage::ISerialized::IPatch
@@ -40,7 +40,7 @@ class MockSeralized: public IStorage::ISerialized
 
   auto  Entities() -> mtc::api<const mtc::IByteBuffer> override {  return &buffer;  }
   auto  Contents() -> mtc::api<const mtc::IByteBuffer> override {  return &buffer;  }
-  auto  Blocks() -> mtc::api<mtc::IFlatStream> override {  return nullptr;  }
+  auto  Linkages() -> mtc::api<mtc::IFlatStream> override {  return nullptr;  }
 
   auto  Commit() -> mtc::api<ISerialized> override  {  return this;  }
   void  Remove() override {}
@@ -88,12 +88,12 @@ public:
     {  throw std::logic_error( "invalid call" );  }
   auto  GetKeyStats( const StrView& ) const -> BlockInfo
     {  return { 0, 5 };  }
-  auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
-  auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
-  auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
+  auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
+    {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+  auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
+    {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+  auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override
+    {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
   auto  Commit() -> mtc::api<IStorage::ISerialized>
     {
       std::this_thread::sleep_for( millis );
@@ -101,6 +101,8 @@ public:
       return &seralized;
     }
   auto  Reduce() -> mtc::api<IContentsIndex>
+    {  throw std::logic_error( "invalid call" );  }
+  void  Remove() override
     {  throw std::logic_error( "invalid call" );  }
   void  Stash( EntityId ) override
     {}

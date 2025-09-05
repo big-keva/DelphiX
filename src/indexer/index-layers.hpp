@@ -1,5 +1,7 @@
 # if !defined( __DelphiX_src_indexer_index_layers_hpp__ )
 # define __DelphiX_src_indexer_index_layers_hpp__
+#include <shared_mutex>
+
 # include "../../contents.hpp"
 # include "dynamic-bitmap.hpp"
 
@@ -38,6 +40,8 @@ namespace indexer {
     auto  getKeyBlock( const StrView&, const mtc::Iface* = nullptr ) const -> mtc::api<IContentsIndex::IEntities>;
     auto  getKeyStats( const StrView& ) const -> IContentsIndex::BlockInfo;
 
+    auto  listContents( const StrView&, const mtc::Iface* = nullptr ) -> mtc::api<IContentsIndex::IContentsList>;
+
     void  addContents( mtc::api<IContentsIndex> pindex );
 
     void  commitItems();
@@ -63,8 +67,41 @@ namespace indexer {
 
     };
 
+    class ContentsList;
+
   protected:
     std::vector<IndexEntry> layers;
+
+  };
+
+  class IndexLayers::ContentsList final: public IContentsIndex::IContentsList
+  {
+    implement_lifetime_control
+
+    ContentsList( const std::vector<mtc::api<IContentsList>>&, const Iface* );
+
+  public:
+    auto  Curr() -> std::string override;
+    auto  Next() -> std::string override;
+
+  protected:
+    struct Iterator: protected mtc::api<IContentsList>
+    {
+      using api::api;
+
+      std::string contentsItem;
+
+      Iterator( const api& list ): api( list ), contentsItem( list->Curr() )  {}
+
+    public:
+      auto  Curr() -> const std::string&  {  return contentsItem;  }
+      auto  Next() -> const std::string&  {  return contentsItem = ptr()->Next();  }
+    };
+
+    mtc::api<const Iface> parentObject;
+    std::vector<Iterator> contentsList;
+    const std::string*    currentValue = nullptr;
+
 
   };
 

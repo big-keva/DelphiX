@@ -71,11 +71,11 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
         }
         SECTION( "entities iterators are available" )
         {
-          auto  it = mtc::api<IContentsIndex::IEntityIterator>();
+          auto  it = mtc::api<IContentsIndex::IEntitiesList>();
 
           SECTION( "* by index" )
           {
-            if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( 0U ) ) && REQUIRE( it != nullptr ) )
+            if ( REQUIRE_NOTHROW( it = contents->ListEntities( 0U ) ) && REQUIRE( it != nullptr ) )
             {
               if ( REQUIRE( it->Curr() != nullptr ) )
                 REQUIRE( it->Curr()->GetIndex() == 1U );
@@ -85,7 +85,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
 
               SECTION( "- iterator may start at specified index" )
               {
-                if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( 2U ) ) && REQUIRE( it != nullptr ) )
+                if ( REQUIRE_NOTHROW( it = contents->ListEntities( 2U ) ) && REQUIRE( it != nullptr ) )
                 {
                   if ( REQUIRE( it->Curr() != nullptr ) )
                     REQUIRE( it->Curr()->GetIndex() == 3U );
@@ -96,7 +96,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
           }
           SECTION( "* by id")
           {
-            if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( "" ) ) && REQUIRE( it != nullptr ) )
+            if ( REQUIRE_NOTHROW( it = contents->ListEntities( "" ) ) && REQUIRE( it != nullptr ) )
             {
               if ( REQUIRE( it->Curr() != nullptr ) )
                 REQUIRE( it->Curr()->GetId() == "aaa" );
@@ -106,7 +106,7 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
 
               SECTION( "- iterator may start at specified id" )
               {
-                if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( "bbb" ) ) && REQUIRE( it != nullptr ) )
+                if ( REQUIRE_NOTHROW( it = contents->ListEntities( "bbb" ) ) && REQUIRE( it != nullptr ) )
                 {
                   if ( REQUIRE( it->Curr() != nullptr ) )
                     REQUIRE( it->Curr()->GetId() == "ccc" );

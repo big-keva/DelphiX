@@ -4,6 +4,8 @@
 # include "../../exceptions.hpp"
 # include <mtc/arena.hpp>
 
+#include "override-entities.hpp"
+
 namespace DelphiX {
 namespace indexer {
 namespace dynamic {
@@ -19,7 +21,8 @@ namespace dynamic {
 
     class KeyValue;
     class Entities;
-    class Iterator;
+    class EntitiesList;
+    class ContentsList;
 
   public:
     ContentsIndex(
@@ -33,7 +36,7 @@ namespace dynamic {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView& ) -> mtc::api<const IEntity> override;
+      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId,
       const StrView& ) -> mtc::api<const IEntity> override;
 
@@ -41,17 +44,15 @@ namespace dynamic {
     auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
-    auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override;
-    auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override;
-
-    auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+    auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override;
+    auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override;
+    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
     void  Remove() override;
 
-    void  Stash( EntityId ) override  {  throw std::logic_error("not implemented");  }
+    void  Stash( EntityId ) override  {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
   protected:
     const uint32_t                  memLimit;
@@ -87,9 +88,9 @@ namespace dynamic {
     friend class ContentsIndex;
 
     using ChainHook = std::remove_pointer<decltype((
-      ContentsIndex::contents.Lookup({})))>::type;
+      contents.Lookup({})))>::type;
     using ChainLink = std::remove_pointer<decltype((
-      ContentsIndex::contents.Lookup({})->pfirst.load()))>::type;
+      contents.Lookup({})->pfirst.load()))>::type;
 
     implement_lifetime_control
 
@@ -111,12 +112,12 @@ namespace dynamic {
 
   };
 
-  class ContentsIndex::Iterator final: public IEntityIterator
+  class ContentsIndex::EntitiesList final: public IEntitiesList
   {
     implement_lifetime_control
 
   public:
-    Iterator( EntTable::Iterator&& it, ContentsIndex* pc ):
+    EntitiesList( EntTable::Iterator&& it, ContentsIndex* pc ):
       contents( pc ),
       iterator( std::move( it ) ) {}
 
@@ -127,6 +128,25 @@ namespace dynamic {
   protected:
     mtc::api<ContentsIndex> contents;
     EntTable::Iterator      iterator;
+
+  };
+
+  class ContentsIndex::ContentsList final: public IContentsList
+  {
+    implement_lifetime_control
+
+  public:
+    ContentsList( ContentsIndex* ix, const StrView& tp ):
+      contents( ix ),
+      iterator( contents->contents.KeySet( tp ) ) {}
+
+  public:
+    auto  Curr() -> std::string override  {  return iterator.CurrentKey();  }
+    auto  Next() -> std::string override  {  return iterator.GetNextKey();  }
+
+  protected:
+    mtc::api<ContentsIndex> contents;
+    Contents::KeyLister     iterator;
 
   };
 
@@ -158,18 +178,25 @@ namespace dynamic {
     return del_id != (uint32_t)-1 ? shadowed.Set( del_id ), true : false;
   }
 
-  auto  ContentsIndex::SetEntity( EntityId id,
-    mtc::api<const IContents> keys, const StrView& extras ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetEntity( EntityId id, mtc::api<const IContents> keys,
+    const StrView& xtra, const StrView& beef ) -> mtc::api<const IEntity>
   {
     auto  entity = mtc::api<EntTable::Entity>();
+    auto  bodies = pStorage != nullptr ? pStorage->Packages() : nullptr;
     auto  del_id = uint32_t{};
+    auto  bdlPos = int64_t(-1);
 
   // check memory requirements
     if ( memArena.memusage() > memLimit )
       throw index_overflow( "dynamic index memory overflow" );
 
+  // check if bodies are defined
+    if ( bodies != nullptr && !beef.empty() )
+      bdlPos = bodies->Put( beef.data(), beef.size() );
+
   // create the entity
-    entity = entities.SetEntity( id, extras, &del_id );
+    entity = entities.SetEntity( id, xtra, &del_id );
+      entity->SetPackPos( bdlPos );
 
   // check if any entities deleted
     if ( del_id != uint32_t(-1) )
@@ -179,7 +206,7 @@ namespace dynamic {
     if ( keys != nullptr )
       keys->Enum( KeyValue( contents, entity->GetIndex() ).ptr() );
 
-    return entity.ptr();
+    return Override::Entity( entity.ptr() ).Bundle( bodies, entity->GetPackPos() );
   }
 
   auto  ContentsIndex::SetExtras( EntityId id, const StrView& extras ) -> mtc::api<const IEntity>
@@ -204,14 +231,19 @@ namespace dynamic {
     return { uint32_t(-1), 0 };
   }
 
-  auto  ContentsIndex::GetEntityIterator( EntityId id ) -> mtc::api<IEntityIterator>
+  auto  ContentsIndex::ListEntities( EntityId id ) -> mtc::api<IEntitiesList>
   {
-    return new Iterator( entities.GetIterator( id ), this );
+    return new EntitiesList( entities.GetIterator( id ), this );
   }
 
-  auto  ContentsIndex::GetEntityIterator( uint32_t ix ) -> mtc::api<IEntityIterator>
+  auto  ContentsIndex::ListEntities( uint32_t ix ) -> mtc::api<IEntitiesList>
   {
-    return new Iterator( entities.GetIterator( ix ), this );
+    return new EntitiesList( entities.GetIterator( ix ), this );
+  }
+
+  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  {
+    return new ContentsList( this, key );
   }
 
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
@@ -226,7 +258,7 @@ namespace dynamic {
 
   // store entities table
     entities.Serialize( pStorage->Entities().ptr() );
-    contents.Serialize( pStorage->Contents().ptr(), pStorage->Chains().ptr() );
+    contents.Serialize( pStorage->Contents().ptr(), pStorage->Linkages().ptr() );
 
     return pStorage->Commit();
   }

@@ -30,9 +30,9 @@ namespace static_ {
       auto  GetLen() const -> size_t override
         {  return length;  }
       int   SetBuf( const void*, size_t ) override
-        {  throw std::logic_error( "not implemented" );  }
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
       int   SetLen( size_t ) override
-        {  throw std::logic_error( "not implemented" );  }
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     protected:
       const char*                 bufptr;
@@ -63,10 +63,13 @@ namespace static_ {
         {  return index;  }
       auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override
         {  return new Region( extras.data(), extras.size(), owner_ptr );  }
+      auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
       auto  GetVersion() const -> uint64_t override
-        {  return 0;  }
+        {  return version;  }
 
       bool  ValidIndex() const noexcept {  return index != 0 && index != uint32_t(-1);  }
+      auto  GetPackPos() const -> int64_t  {  return packPos;  }
 
     protected:
     // loading
@@ -75,9 +78,11 @@ namespace static_ {
     public:
       mtc::Iface*       owner_ptr = nullptr;
       Entity*           collision = nullptr;
+
       StrView           entity_id;
       StrView           extras;
       uint32_t          index = 0;            // order of creation, default 0
+      int64_t           packPos = -1;
       uint64_t          version = 0;
 
     };
@@ -152,12 +157,16 @@ namespace static_ {
     unsigned  cch;
 
   // get index and id length; set entity id
-    if ( (src = ::FetchFrom( ::FetchFrom( ::FetchFrom( src,
-      index ),
-      version ), cch )) == nullptr )
-    return nullptr;
+    if ( (src = ::FetchFrom( ::FetchFrom( ::FetchFrom( ::FetchFrom( src,
+      index ), version ), packPos ), cch )) == nullptr ) return nullptr;
 
     src = (entity_id = { src, cch }).data() + cch;
+    --packPos;
+
+    if ( packPos == -1 && index != uint32_t(-1) )
+    {
+      int i = 0;
+    }
 
   // get attribute length
     if ( (src = ::FetchFrom( src, cch )) == nullptr )

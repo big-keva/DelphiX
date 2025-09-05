@@ -1,4 +1,7 @@
 # include "index-layers.hpp"
+
+#include <storage/posix-fs.hpp>
+
 # include "override-entities.hpp"
 
 namespace DelphiX {
@@ -40,6 +43,7 @@ namespace indexer {
   IndexLayers::IndexLayers( const mtc::api<IContentsIndex>* indices, size_t count )
   {
     uint32_t  uLower = 1;
+
 
     for ( auto end = indices + count; indices != end; uLower += (*indices++)->GetMaxIndex() )
       layers.emplace_back( uLower, *indices );
@@ -96,7 +100,7 @@ namespace indexer {
 
   auto  IndexLayers::getMaxIndex() const -> uint32_t
   {
-    return layers.size() != 0 ? layers.back().uUpper : 0;
+    return layers.size() != 0 ? layers.back().uLower + layers.back().pIndex->GetMaxIndex() - 1 : 0;
   }
 
   auto  IndexLayers::getKeyBlock( const StrView& key, const mtc::Iface* pix ) const -> mtc::api<IContentsIndex::IEntities>
@@ -126,6 +130,8 @@ namespace indexer {
     {
       auto  cStats = next.pIndex->GetKeyStats( key );
 
+      if ( cStats.bkType == uint32_t(-1) )
+        continue;
       if ( blockStats.bkType == uint32_t(-1) )  blockStats = cStats;
         else
       if ( blockStats.bkType == cStats.bkType ) blockStats.nCount += cStats.nCount;
@@ -141,6 +147,19 @@ namespace indexer {
     auto  uLower = layers.empty() ? 1 : layers.back().uUpper + 1;
 
     layers.emplace_back( uLower, ix );
+  }
+
+  auto  IndexLayers::listContents( const StrView& key, const mtc::Iface* poo  ) -> mtc::api<IContentsIndex::IContentsList>
+  {
+    auto  contents = std::vector<mtc::api<IContentsIndex::IContentsList>>();
+    auto  nextList = mtc::api<IContentsIndex::IContentsList>();
+
+    for ( auto& next: layers )
+      if ( (nextList = next.pIndex->ListContents( key )) != nullptr )
+        contents.emplace_back( nextList );
+
+    return contents.size() > 1 ? new ContentsList( contents, poo ) :
+           contents.size() > 0 ? contents.front() : nullptr;
   }
 
   void  IndexLayers::commitItems()
@@ -223,6 +242,44 @@ namespace indexer {
         return getRef.uEntity += pblock->uLower - 1, getRef;
     }
     return { uint32_t(-1), {} };
+  }
+
+  // IndexLayers::ContentsList implementation
+
+  IndexLayers::ContentsList::ContentsList( const std::vector<mtc::api<IContentsList>>& list, const Iface* parent ):
+    parentObject( parent )
+  {
+    for ( auto& next: list )
+      contentsList.push_back( next );
+
+    for ( auto& next: contentsList )
+      if ( next.Curr().size() != 0 )
+        if ( currentValue == nullptr || next.Curr() < *currentValue )
+          currentValue = &next.Curr();
+  }
+
+  auto  IndexLayers::ContentsList::Curr() -> std::string
+  {
+    return currentValue != nullptr ? *currentValue : std::string();
+  }
+
+  auto  IndexLayers::ContentsList::Next() -> std::string
+  {
+    if ( currentValue != nullptr )
+    {
+      const std::string*  minValue = nullptr;
+
+      for ( auto& next: contentsList )
+      {
+        if ( currentValue == &next.Curr() || *currentValue == next.Curr() )
+          next.Next();
+        if ( next.Curr().size() != 0 )
+          if ( minValue == nullptr || next.Curr() < *minValue )
+            minValue = &next.Curr();
+      }
+      currentValue = minValue;
+    }
+    return currentValue != nullptr ? *currentValue : std::string();
   }
 
 }}

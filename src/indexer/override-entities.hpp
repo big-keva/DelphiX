@@ -21,6 +21,7 @@ namespace indexer {
 
     auto  Index( uint32_t ) -> mtc::api<const IEntity>;
     auto  Extra( const mtc::api<const mtc::IByteBuffer>& ) -> mtc::api<const IEntity>;
+    auto  Bundle( const mtc::api<IStorage::IDumpStore>&, int64_t ) -> mtc::api<const IEntity>;
   };
 
   class Override::Entities final: public IContentsIndex::IEntities

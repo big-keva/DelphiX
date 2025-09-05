@@ -3,6 +3,7 @@
 # include "../../contents.hpp"
 # include "dynamic-chains-ringbuffer.hpp"
 # include "dynamic-bitmap.hpp"
+# include "strmatch.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <mtc/radix-tree.hpp>
 # include <condition_variable>
@@ -114,15 +115,18 @@ namespace dynamic {
     };
 
   public:
+    class KeyLister;
+
     BlockChains( Allocator alloc = Allocator() );
    ~BlockChains();
 
-  public:
     void  Insert( const StrView& key, uint32_t entity, const StrView& block, unsigned bkType );
     auto  Lookup( const StrView& key ) const -> const ChainHook*;
     template <class OtherAllocator>
     auto  Remove( const Bitmap<OtherAllocator>& ) -> BlockChains&;
     auto  StopIt() -> BlockChains&;
+
+    auto  KeySet( const StrView& ) const -> KeyLister;
 
    /*
     * bool  Verify() const;
@@ -165,11 +169,33 @@ namespace dynamic {
     HookAllocator                             hookAlloc;
 
     mtc::radix::tree<RadixLink, Allocator>    radixTree;    // parallel radix tree
+    mutable std::shared_mutex                 radixLock;    // locker to access
 
     RingBuffer<ChainHook*, ring_buffer_size>  keysQueue;    // queue for keys indexing
     std::condition_variable                   keySyncro;    // syncro for shadow indexing keys
     std::thread                               keyThread;    // shadow keys indexer
     volatile bool                             runThread = false;
+
+  };
+
+  template <class Allocator>
+  class BlockChains<Allocator>::KeyLister
+  {
+    using const_it_type = typename mtc::radix::tree<RadixLink, Allocator>::
+      const_iterator<std::allocator<char>>;
+
+  public:
+    KeyLister( std::shared_mutex&, const_it_type&&, const_it_type&&, std::string&& );
+    KeyLister( std::shared_mutex&, const_it_type&&, const_it_type&& );
+
+    auto  CurrentKey() -> std::string;
+    auto  GetNextKey() -> std::string;
+
+  protected:
+    std::shared_lock<std::shared_mutex> lck;
+    const_it_type                       beg;
+    const_it_type                       end;
+    std::string                         tpl;
 
   };
 
@@ -263,7 +289,7 @@ namespace dynamic {
     auto  hvalue = mtc::ptr::clean( hashTable[hindex].load() );
 
   // first try find existing block in the hash chain
-    for ( ; hvalue != nullptr; hvalue->pchain.load() )
+    for ( ; hvalue != nullptr; hvalue = hvalue->pchain.load() )
       if ( *hvalue == key )
         return hvalue;
 
@@ -283,6 +309,23 @@ namespace dynamic {
       keyThread.join();
     }
     return *this;
+  }
+
+  template <class Allocator>
+  auto  BlockChains<Allocator>::KeySet( const StrView& key ) const -> KeyLister
+  {
+    auto  templStr = std::string( key.begin(), key.end() );
+    auto  templLen = size_t(0);
+    auto  radixBeg = radixTree.cend( std::allocator<char>() );
+    auto  radixEnd = radixTree.cend( std::allocator<char>() );
+
+    for ( ; templLen < templStr.size() && templStr[templLen] != '*' && templStr[templLen] != '?'; ++templLen )
+      (void)NULL;
+
+    if ( templLen != 0 )  radixBeg = radixTree.lower_bound( { templStr.data(), templLen }, std::allocator<char>() );
+      else radixBeg = radixTree.cbegin( std::allocator<char>() );
+
+    return KeyLister( radixLock, std::move( radixBeg ), std::move( radixEnd ), std::move( templStr ) );
   }
 
   template <class Allocator>
@@ -403,7 +446,9 @@ namespace dynamic {
 
     for ( runThread = true; runThread; )
     {
-      for ( keySyncro.wait( locker ); keysQueue.Get( addkey ); )
+      auto  modify = mtc::make_unique_lock( radixLock, std::defer_lock );
+
+      for ( keySyncro.wait( locker ), modify.lock(); keysQueue.Get( addkey ); )
         radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
     }
     while ( keysQueue.Get( addkey ) )
@@ -533,6 +578,57 @@ namespace dynamic {
         --ncount;
       }
     return *this;
+  }
+
+  // BlockChains::KeyLister implementation
+
+  template <class Allocator>
+  BlockChains<Allocator>::KeyLister::KeyLister( std::shared_mutex& mx,
+    const_it_type&& ib,
+    const_it_type&& ie, std::string&& tp ):
+      lck( mx ),
+      beg( std::move( ib ) ),
+      end( std::move( ie ) ),
+      tpl( std::move( tp ) )
+  {
+    if ( tpl.length() != 0 )
+    {
+      int   rescmp;
+
+      while ( beg != end && (rescmp = strmatch( tpl, beg->key )) < 0 )
+        ++beg;
+      if ( rescmp != 0 )
+        beg = end;
+    }
+  }
+
+  template <class Allocator>
+  BlockChains<Allocator>::KeyLister::KeyLister( std::shared_mutex& mx,
+    const_it_type&& ib,
+    const_it_type&& ie ):
+      lck( mx ),
+      beg( std::move( ib ) ),
+      end( std::move( ie ) ) {}
+
+  template <class Allocator>
+  auto  BlockChains<Allocator>::KeyLister::CurrentKey() -> std::string
+  {
+    return beg != end ? beg->key.to_string() : "";
+  }
+
+  template <class Allocator>
+  auto  BlockChains<Allocator>::KeyLister::GetNextKey() -> std::string
+  {
+    if ( beg != end )
+    {
+      int   rescmp;
+
+      do ++beg;
+        while ( beg != end && (rescmp = strmatch( tpl, beg->key )) < 0 );
+      if ( rescmp != 0 )
+        beg = end;
+    }
+    return beg != end ? beg->key.to_string() : "";
   }
 
 }}}

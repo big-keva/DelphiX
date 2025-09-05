@@ -92,11 +92,11 @@ TestItEasy::RegisterFunc  static_contents( []()
           }
           SECTION( "entities are iterable" )
           {
-            auto  it = mtc::api<IContentsIndex::IEntityIterator>();
+            auto  it = mtc::api<IContentsIndex::IEntitiesList>();
 
             SECTION( "* by id" )
             {
-              if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( "" ) ) && REQUIRE( it != nullptr ) )
+              if ( REQUIRE_NOTHROW( it = contents->ListEntities( "" ) ) && REQUIRE( it != nullptr ) )
               {
                 if ( REQUIRE_NOTHROW( entity = it->Curr() ) && REQUIRE( entity != nullptr ) )
                   REQUIRE( entity->GetId() == "aaa" );
@@ -107,7 +107,7 @@ TestItEasy::RegisterFunc  static_contents( []()
 
                 SECTION( "- it may be positioned to some entity on create" )
                 {
-                  if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( "b" ) ) && REQUIRE( it != nullptr ) )
+                  if ( REQUIRE_NOTHROW( it = contents->ListEntities( "b" ) ) && REQUIRE( it != nullptr ) )
                     if ( REQUIRE_NOTHROW( entity = it->Curr() ) && REQUIRE( entity != nullptr ) )
                       REQUIRE( entity->GetId() == "ccc" );
                 }
@@ -115,7 +115,7 @@ TestItEasy::RegisterFunc  static_contents( []()
             }
             SECTION( "* by index" )
             {
-              if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( 0U ) ) && REQUIRE( it != nullptr ) )
+              if ( REQUIRE_NOTHROW( it = contents->ListEntities( 0U ) ) && REQUIRE( it != nullptr ) )
               {
                 if ( REQUIRE_NOTHROW( entity = it->Curr() ) && REQUIRE( entity != nullptr ) )
                   REQUIRE( entity->GetIndex() == 1 );
@@ -182,19 +182,19 @@ TestItEasy::RegisterFunc  static_contents( []()
               }
               SECTION( "for iterators" )
               {
-                auto  it = mtc::api<IContentsIndex::IEntityIterator>();
+                auto  it = mtc::api<IContentsIndex::IEntitiesList>();
 
                 SECTION( "* by id" )
                 {
-                  if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( "aaa" ) ) && REQUIRE( it != nullptr ) )
+                  if ( REQUIRE_NOTHROW( it = contents->ListEntities( "aaa" ) ) && REQUIRE( it != nullptr ) )
                     if ( REQUIRE_NOTHROW( entity = it->Curr() ) && REQUIRE( entity != nullptr ) )
                       REQUIRE( entity->GetId() == "ccc" );
                 }
                 SECTION( "* by index" )
                 {
-                  auto  it = mtc::api<IContentsIndex::IEntityIterator>();
+                  auto  it = mtc::api<IContentsIndex::IEntitiesList>();
 
-                  if ( REQUIRE_NOTHROW( it = contents->GetEntityIterator( 0U ) ) && REQUIRE( it != nullptr ) )
+                  if ( REQUIRE_NOTHROW( it = contents->ListEntities( 0U ) ) && REQUIRE( it != nullptr ) )
                     if ( REQUIRE_NOTHROW( entity = it->Curr() ) && REQUIRE( entity != nullptr ) )
                       REQUIRE( entity->GetIndex() == 3 );
                 }
@@ -245,9 +245,9 @@ TestItEasy::RegisterFunc  static_contents( []()
             }
             SECTION( "access by iterator also is affected by changing extras" )
             {
-              auto  it = mtc::api<IContentsIndex::IEntityIterator>();
+              auto  it = mtc::api<IContentsIndex::IEntitiesList>();
 
-              REQUIRE_NOTHROW( it = contents->GetEntityIterator( "ccc" ) );
+              REQUIRE_NOTHROW( it = contents->ListEntities( "ccc" ) );
               if ( REQUIRE( it != nullptr ) )
               {
                 REQUIRE_NOTHROW( entity = it->Curr() );

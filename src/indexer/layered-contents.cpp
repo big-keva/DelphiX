@@ -4,6 +4,7 @@
 # include "../../exceptions.hpp"
 # include "commit-contents.hpp"
 # include "merger-contents.hpp"
+# include "object-holders.hpp"
 # include "index-layers.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <shared_mutex>
@@ -31,20 +32,19 @@ namespace layered {
     auto  GetEntity( uint32_t ) const -> mtc::api<const IEntity> override;
 
     bool  DelEntity( EntityId ) override;
-    auto  SetEntity( EntityId,
-      mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity> override;
+    auto  SetEntity( EntityId, mtc::api<const IContents>,
+      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override;
     auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
-    auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
+    auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-      {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override {  return this;  }
@@ -102,6 +102,7 @@ namespace layered {
       addContents( dynamic::Index()
         .Set( dynamic )
         .Set( dynSet ).Create() );
+      layers.back().uUpper = uint32_t(-1);
       layers.back().dwSets = 1;
       rdOnly = false;
     } else rdOnly = true;
@@ -153,8 +154,8 @@ namespace layered {
     return delEntity( id );
   }
 
-  auto  ContentsIndex::SetEntity( EntityId id,
-    mtc::api<const IContents> contents, const StrView& extras ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetEntity( EntityId id, mtc::api<const IContents> contents,
+    const StrView& xtra, const StrView& beef ) -> mtc::api<const IEntity>
   {
     if ( layers.empty() )
       throw std::logic_error( "index flakes are not initialized" );
@@ -168,7 +169,7 @@ namespace layered {
     // try Set the entity to the last index in the chain
       try
       {
-        return layers.back().Override( pindex->SetEntity( id, contents, extras ) );
+        return layers.back().Override( pindex->SetEntity( id, contents, xtra, beef ) );
       }
 
     // on dynamic index overflow, rotate the last index by creating new one in a new flakes,
@@ -211,7 +212,9 @@ namespace layered {
 
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
   {
-    throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );
+    auto  shlock = mtc::make_shared_lock( ixlock );
+
+    return commitItems(), nullptr;
   }
 
   void  ContentsIndex::Remove()
@@ -227,14 +230,20 @@ namespace layered {
 
   auto  ContentsIndex::GetKeyBlock( const StrView& key ) const -> mtc::api<IEntities>
   {
-    auto  shlock = mtc::make_shared_lock( ixlock );
-    return getKeyBlock( key, this );
+    return mtc::interlocked( mtc::make_shared_lock( ixlock ), [&]()
+      {  return getKeyBlock( key, this );  } );
   }
 
   auto  ContentsIndex::GetKeyStats( const StrView& key ) const -> BlockInfo
   {
-    auto  shlock = mtc::make_shared_lock( ixlock );
-    return getKeyStats( key );
+    return mtc::interlocked( mtc::make_shared_lock( ixlock ), [&]()
+      {  return getKeyStats( key );  } );
+  }
+
+  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  {
+    return listContents( key, MakeObjectHolder( mtc::api( (const Iface*)this ),
+      std::move( mtc::make_shared_lock( ixlock ) ) ) );
   }
 
   void  ContentsIndex::MergeMonitor( const std::chrono::seconds& startDelay )

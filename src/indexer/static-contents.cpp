@@ -1,8 +1,12 @@
 # include "../../indexer/static-contents.hpp"
+
+#include <context/x-contents.hpp>
+
 # include "override-entities.hpp"
 # include "static-entities.hpp"
 # include "dynamic-bitmap.hpp"
 # include "patch-table.hpp"
+# include "strmatch.hpp"
 # include <mtc/radix-tree.hpp>
 # include <mtc/arena.hpp>
 
@@ -19,13 +23,13 @@ namespace static_ {
     using IFlatStream = mtc::IFlatStream;
     using PatchHolder = PatchTable<Allocator>;
     using ContentsTable = mtc::radix::dump<const char>;
-    using ContentsIterator = ContentsIndex::ContentsTable::const_iterator;
+    using ContentsIterator = ContentsTable::const_iterator;
 
     class EntitiesBase;
     class EntitiesLite;
     class EntitiesRich;
     class EntityIterator;
-    class RecordIterator;
+    class LexemeIterator;
 
     implement_lifetime_control
 
@@ -37,7 +41,8 @@ namespace static_ {
     auto  GetEntity( EntityId id ) const -> mtc::api<const IEntity> override;
     auto  GetEntity( uint32_t id ) const -> mtc::api<const IEntity> override;
     bool  DelEntity( EntityId ) override;
-    auto  SetEntity( EntityId, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity> override;
+    auto  SetEntity( EntityId, mtc::api<const IContents>,
+      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override
@@ -46,10 +51,10 @@ namespace static_ {
     auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
     auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
 
-    auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override;
-    auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override;
+    auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override;
+    auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override;
 
-    auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override;
+    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
@@ -113,7 +118,7 @@ namespace static_ {
 
   };
 
-  class ContentsIndex::EntityIterator final: public IEntityIterator
+  class ContentsIndex::EntityIterator final: public IEntitiesList
   {
     implement_lifetime_control
 
@@ -132,29 +137,21 @@ namespace static_ {
 
   };
 
-  class ContentsIndex::RecordIterator final: public IRecordIterator
+  class ContentsIndex::LexemeIterator final: public IContentsList
   {
     implement_lifetime_control
 
   public:
-    RecordIterator( ContentsIndex* pc ):
-      contents( pc ),
-      iterator( pc->contents.begin() ){}
+    LexemeIterator( ContentsIndex*, const StrView& );
 
   public:
-    auto  Curr() -> std::string override
-    {
-        return iterator != contents->contents.end() ? iterator->key.to_string() : "";
-    }
-    auto  Next() -> std::string override
-    {
-      return iterator != contents->contents.end() && ++iterator != contents->contents.end() ?
-        iterator->key.to_string() : "";
-    }
+    auto  Curr() -> std::string override;
+    auto  Next() -> std::string override;
 
   protected:
     mtc::api<ContentsIndex> contents;
     ContentsIterator        iterator;
+    std::string             templStr;
 
   };
 
@@ -166,7 +163,7 @@ namespace static_ {
     radixBuf( storage->Contents() ),
     entities( tableBuf, this, memArena.get_allocator<char>() ),
     contents( radixBuf->GetPtr() ),
-    blockBox( storage->Blocks() ),
+    blockBox( storage->Linkages() ),
     patchTab( std::max( 1000U, entities.GetEntityCount() ), memArena.get_allocator<char>() ),
     shadowed( entities.GetEntityCount(), memArena.get_allocator<char>() )
   {
@@ -181,12 +178,14 @@ namespace static_ {
       auto  ppatch = patchTab.Search( { id.data(), id.size() } );
 
       if ( ppatch == nullptr )
-        return entity.ptr();
+        return Override::Entity( entity.ptr() ).Bundle( xStorage->Packages(), entity->GetPackPos() );
 
       if ( ppatch->GetLen() == size_t(-1) )
         return nullptr;
 
-      return Override::Entity( entity.ptr() ).Extra( ppatch );
+      return Override::Entity( Override::Entity( entity.ptr() )
+        .Bundle( xStorage->Packages(), entity->GetPackPos() ) )
+        .Extra( ppatch );
     }
     return nullptr;
   }
@@ -215,7 +214,8 @@ namespace static_ {
     return false;
   }
 
-  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>,
+    const StrView&, const StrView& ) -> mtc::api<const IEntity>
   {
     throw std::logic_error( "static_::ContentsIndex::SetEntity( ) must not be called" );
   }
@@ -276,19 +276,19 @@ namespace static_ {
     return { uint32_t(-1), 0 };
   }
 
-  auto  ContentsIndex::GetEntityIterator( EntityId id ) -> mtc::api<IEntityIterator>
+  auto  ContentsIndex::ListEntities( EntityId id ) -> mtc::api<IEntitiesList>
   {
     return new EntityIterator( entities.GetIterator( id ), this );
   }
 
-  auto  ContentsIndex::GetEntityIterator( uint32_t ix ) -> mtc::api<IEntityIterator>
+  auto  ContentsIndex::ListEntities( uint32_t ix ) -> mtc::api<IEntitiesList>
   {
     return new EntityIterator( entities.GetIterator( ix ), this );
   }
 
-  auto  ContentsIndex::GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator>
+  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
   {
-    return new RecordIterator( this );
+    return new LexemeIterator( this, key );
   }
 
   auto  ContentsIndex::Commit() -> mtc::api<IStorage::ISerialized>
@@ -336,7 +336,7 @@ namespace static_ {
 
   auto  ContentsIndex::EntitiesLite::Find( uint32_t tofind ) -> Reference
   {
-    for ( tofind = std::max( tofind, 1U ); curref.uEntity < tofind; )
+    for ( tofind = std::max( tofind, 1U ); ptrtop < ptrend && curref.uEntity < tofind; )
     {
       unsigned  udelta;
 
@@ -381,9 +381,14 @@ namespace static_ {
     for ( auto ent = iterator.Curr(); ent != nullptr; ent = iterator.Next() )
       if ( !contents->shadowed.Get( ent->GetIndex() ) )
       {
-        auto  patch = contents->patchTab.Search( ent->GetIndex() );
+        auto  patched = contents->patchTab.Search( ent->GetIndex() );
+        auto  bundled = Override::Entity( ent ).Bundle( contents->xStorage->Packages(), ent->GetPackPos() );
 
-        return patch != nullptr ? Override::Entity( ent ).Extra( patch ) : ent;
+        if ( bundled == ent )
+        {
+          int i = 0;
+        }
+        return patched != nullptr ? Override::Entity( bundled ).Extra( patched ) : bundled;
       }
 
     return nullptr;
@@ -393,7 +398,16 @@ namespace static_ {
   {
     for ( auto ent = iterator.Next(); ent != nullptr; ent = iterator.Next() )
       if ( !contents->shadowed.Get( ent->GetIndex() ) )
-        return ent;
+      {
+        auto  patched = contents->patchTab.Search( ent->GetIndex() );
+        auto  bundled = Override::Entity( ent ).Bundle( contents->xStorage->Packages(), ent->GetPackPos() );
+
+        if ( bundled == ent )
+        {
+          int i = 0;
+        }
+        return patched != nullptr ? Override::Entity( bundled ).Extra( patched ) : bundled;
+      }
 
     return nullptr;
   }
@@ -405,6 +419,50 @@ namespace static_ {
     if ( serialized->Entities() == nullptr )
       throw std::invalid_argument( "static_::ContentsIndex::Create() must not be called" );
     return new ContentsIndex( serialized );
+  }
+
+  // ContentsIndex::LexemeIterator implementation
+
+  ContentsIndex::LexemeIterator::LexemeIterator( ContentsIndex* pc, const StrView& pk ):
+    contents( pc ),
+    iterator( pc->contents.end() ),
+    templStr( pk )
+  {
+    auto  ktop = templStr.data();
+    auto  kend = templStr.data() + templStr.size();
+    int   rcmp;
+
+    while ( ktop != kend && *ktop != '?' && *ktop != '*' )
+      ++ktop;
+
+    iterator = pc->contents.lower_bound( { templStr.data(), ktop } );
+
+    if ( templStr.size() != 0 )
+      while ( iterator != pc->contents.end() && (rcmp = strmatch( templStr, iterator->key )) < 0 )
+        ++iterator;
+
+    if ( rcmp > 0 )
+      iterator = pc->contents.end();
+  }
+
+  auto  ContentsIndex::LexemeIterator::Curr() -> std::string
+  {
+    return iterator != contents->contents.end() ? iterator->key.to_string() : "";
+  }
+
+  auto  ContentsIndex::LexemeIterator::Next() -> std::string
+  {
+    if ( iterator != contents->contents.end() )
+    {
+      int   rcmp = 0;
+
+      do ++iterator;
+        while ( iterator != contents->contents.end() && templStr.size() != 0 && (rcmp = strmatch( templStr, iterator->key )) < 0 );
+
+      if ( iterator != contents->contents.end() && rcmp > 0 )
+        iterator = contents->contents.end();
+    }
+    return iterator != contents->contents.end() ? iterator->key.to_string() : "";
   }
 
 }}}

@@ -81,9 +81,9 @@ namespace indexer {
     auto  GetLen() const -> size_t
       {  return length;  }
     int   SetBuf( const void*, size_t ) override
-      {  throw std::logic_error( "not implemented" );  }
+      {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     int   SetLen( size_t ) override
-      {  throw std::logic_error( "not implemented" );  }
+      {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
   protected:
     PatchAlloc        memman;

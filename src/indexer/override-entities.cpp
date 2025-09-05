@@ -19,6 +19,7 @@ namespace indexer {
     auto  GetId() const -> EntityId override {  return entity->GetId();  }
     auto  GetIndex() const -> uint32_t override {  return oindex;  }
     auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override {  return entity->GetExtra();  }
+    auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override {  return entity->GetBundle();  }
     auto  GetVersion() const -> uint64_t override {  return entity->GetVersion();  }
 
   };
@@ -39,6 +40,30 @@ namespace indexer {
     auto  GetId() const -> EntityId override {  return entity->GetId();  }
     auto  GetIndex() const -> uint32_t override {  return entity->GetIndex();  }
     auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override {  return aprops;  }
+    auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override {  return entity->GetBundle();  }
+    auto  GetVersion() const -> uint64_t override {  return entity->GetVersion();  }
+
+  };
+
+  class override_bundle final: public IEntity
+  {
+    mtc::api<const IEntity>           entity;
+    mtc::api<IStorage::IDumpStore>    istore;
+    int64_t                           getpos;
+
+    implement_lifetime_control
+
+  public:
+    override_bundle( mtc::api<const IEntity> en, const mtc::api<IStorage::IDumpStore>& dm, int64_t dp ):
+      entity( en ),
+      istore( dm ),
+      getpos( dp ) {}
+
+  protected:
+    auto  GetId() const -> EntityId override {  return entity->GetId();  }
+    auto  GetIndex() const -> uint32_t override {  return entity->GetIndex();  }
+    auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override {  return entity->GetExtra();  }
+    auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override {  return istore->Get( getpos );  }
     auto  GetVersion() const -> uint64_t override {  return entity->GetVersion();  }
 
   };
@@ -53,6 +78,11 @@ namespace indexer {
   auto  Override::Entity::Extra( const mtc::api<const mtc::IByteBuffer>& bb ) -> mtc::api<const IEntity>
   {
     return new override_attributes( entity, bb );
+  }
+
+  auto  Override::Entity::Bundle( const mtc::api<IStorage::IDumpStore>& ds, int64_t dp ) -> mtc::api<const IEntity>
+  {
+    return ds != nullptr && dp != -1 ? new override_bundle( entity, ds, dp ) : entity;
   }
 
   // Override::Entities implementation

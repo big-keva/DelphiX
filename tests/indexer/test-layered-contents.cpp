@@ -29,6 +29,8 @@ public:
   }
 };
 
+# define NOT_IMPLEMENTED  {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+
 class MockDynamic final: public IContentsIndex
 {
   implement_lifetime_control
@@ -68,16 +70,14 @@ public:
     {  return nullptr;  }
   auto  GetKeyStats( const StrView& ) const -> BlockInfo override
     {  return { uint32_t(-1), 0 };  }
-  auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
-  auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
-  auto  GetRecordIterator( const StrView& ) -> mtc::api<IRecordIterator> override
-    {  throw std::runtime_error( "not implemented" );  }
+  auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override NOT_IMPLEMENTED
+  auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override NOT_IMPLEMENTED
+  auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override NOT_IMPLEMENTED
   auto  Commit() -> mtc::api<IStorage::ISerialized> override
     {  return nullptr;  }
   auto  Reduce() -> mtc::api<IContentsIndex> override
     {  return this;  }
+  void  Remove() override NOT_IMPLEMENTED
   void  Stash( EntityId ) override
     {}
 

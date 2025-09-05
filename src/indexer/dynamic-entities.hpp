@@ -30,9 +30,7 @@ namespace dynamic {
       using extras = std::vector<char, Allocator>;
 
     public:
-      Entity( Allocator mm ): Entity( mm, 0U ) {}
-      Entity( Allocator mm, uint32_t ix ): Entity( mm, {}, ix, 0, {}, nullptr ) {}
-      Entity( Allocator mm, const EntityId& id, uint32_t ix, uint64_t ver, const StrView& xtra, mtc::Iface* pw );
+      Entity( Allocator mm );
 
     public:     // from mtc::Iface
       long  Attach() override
@@ -47,6 +45,8 @@ namespace dynamic {
         {  return index;  }
       auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override
         {  return this;  }
+      auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
       auto  GetVersion() const -> uint64_t override
         {  return version;  }
 
@@ -56,11 +56,20 @@ namespace dynamic {
       auto  GetLen() const noexcept -> size_t override
         {  return extra.size();  }
       int   SetBuf( const void*, size_t ) override
-        {  throw std::logic_error( "not implemented" );  }
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
       int   SetLen( size_t ) override
-        {  throw std::logic_error( "not implemented" );  }
+        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
     public:     // customization
+      auto  SetId( const EntityId& ) -> Entity&;
+      auto  SetIndex( uint32_t ) -> Entity&;
+      auto  SetOwner( Iface* ) -> Entity&;
+      auto  SetExtra( const StrView& ) -> Entity&;
+      auto  SetPackPos( int64_t ) -> Entity&;
+      auto  SetVersion( uint64_t ) -> Entity&;
+
+      auto  GetPackPos() const -> int64_t {  return packPos;  }
+
     public:     // serialization
       template <class O>
       O*  Serialize( O* ) const;
@@ -68,10 +77,11 @@ namespace dynamic {
     protected:
       string                id;                   // public entity id
       extras                extra;                // document attributes
-      uint32_t              index;                // order of creation, default 0
+      uint32_t              index = -1;          // order of creation, default 0
+      int64_t               packPos = -1;
       uint64_t              version;
 
-      mtc::Iface*           ownerPtr;
+      mtc::Iface*           ownerPtr = nullptr;
       std::atomic<Entity*>  collision = nullptr;  // relocation in the hash table
 
     };
@@ -187,14 +197,32 @@ namespace dynamic {
   // EntityTable::Entiry implementation
 
   template <class Allocator>
-  EntityTable<Allocator>::Entity::Entity( Allocator mm, const EntityId& id, uint32_t ix,
-      uint64_t ver, const StrView& xtra, mtc::Iface* op ):
-    id( id.data(), id.size(), mm ),
-    extra( xtra.data(), xtra.data() + xtra.size(), mm ),
-    index( ix ),
-    version( ver ),
-    ownerPtr( op )
-  {}
+  EntityTable<Allocator>::Entity::Entity( Allocator mm ):
+    id( mm ), extra( mm ) {}
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetId( const EntityId& setid ) -> Entity&
+    {  return id = setid, *this;  }
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetIndex( uint32_t ix ) -> Entity&
+    {  return index = ix, *this;  }
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetOwner( Iface* po ) -> Entity&
+    {  return ownerPtr = po, *this;  }
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetExtra( const StrView& xtra ) -> Entity&
+    {  return extra.insert( extra.end(), xtra.begin(), xtra.end() ), *this;  }
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetPackPos( int64_t tp ) -> Entity&
+    {  return packPos = tp, *this;  }
+
+  template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetVersion( uint64_t qw ) -> Entity&
+    {  return version = qw, *this;  };
 
   template <class Allocator>
   template <class O>
@@ -203,7 +231,8 @@ namespace dynamic {
     return ::Serialize(
            ::Serialize(
            ::Serialize(
-           ::Serialize( o, index ), version ), id ), extra );
+           ::Serialize(
+           ::Serialize( o, index ), version ), packPos + 1 ), id ), extra );
   }
 
   // EntityTable implementation
@@ -216,7 +245,7 @@ namespace dynamic {
     ptrOwner( owner )
   {
     new( entStore.data() )
-      Entity( alloc, uint32_t(-1) );
+      Entity( alloc );
   }
 
   template <class Allocator>
@@ -290,8 +319,12 @@ namespace dynamic {
       if ( !ptrStore.compare_exchange_weak( entptr, entptr + 1 ) )
         continue;
 
-      new( entptr ) Entity( entTable.get_allocator(), id, entptr - &getEntity( 0 ), 0, xtras, ptrOwner );
-        break;
+      (new( entptr ) Entity( entTable.get_allocator() ))->
+        SetId( id ).
+        SetIndex( entptr - &getEntity( 0 ) ).
+        SetExtra( xtras ).
+        SetOwner( ptrOwner );
+      break;
     }
 
   // Ok, the entity is allocated and no changes made to document set and relocation table;
@@ -434,9 +467,9 @@ namespace dynamic {
   template <class O>
   O*  EntityTable<Allocator>::Serialize( O* o ) const
   {
-    auto  delEnt = Entity( entTable.get_allocator(), uint32_t(-1) );
+    auto  delEnt = Entity( entTable.get_allocator() );
 
-    if ( (o = Entity( entTable.get_allocator() ).Serialize( o )) == nullptr )
+    if ( (o = delEnt.Serialize( o )) == nullptr )
       return nullptr;
 
     for ( auto ptr = &getEntity( 1 ), end = ptrStore.load(); ptr != end && o != nullptr; ++ptr )
