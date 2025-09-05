@@ -10,11 +10,10 @@ namespace posixFS {
   enum Unit: unsigned
   {
     entities      = 0x0001,
-    attributes    = 0x0002,
-    contents      = 0x0004,
-    blocks        = 0x0008,
-    images        = 0x0010,
-    status        = 0x0020
+    contents      = 0x0002,
+    linkages      = 0x0004,
+    packages      = 0x0008,
+    bulletin      = 0x0010
   };
 
   enum Mode: unsigned
@@ -67,7 +66,7 @@ namespace posixFS {
     auto  AddPolicy( Unit, Mode, std::string_view ) -> StoragePolicies&;
     auto  GetPolicy( Unit ) const -> const Policy*;
     static
-    auto  GetSuffix( Unit) -> const char*;
+    auto  GetSuffix( Unit ) -> const char*;
 
   };
 

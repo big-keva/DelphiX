@@ -8,6 +8,8 @@
 # include <thread>
 # include <unistd.h>
 
+#include "posix-fs-dump-store.hpp"
+
 namespace DelphiX {
 namespace storage {
 namespace posixFS {
@@ -23,10 +25,11 @@ namespace posixFS {
       policies( s )  {}
     Sink( Sink&& sink ):
       policies( std::move( sink.policies ) ),
-      autoRemove( std::move( sink.autoRemove ) ),
+      doRemove( std::move( sink.doRemove ) ),
       entities( std::move( sink.entities ) ),
       contents( std::move( sink.contents ) ),
-      blocks( std::move( sink.blocks ) )  {}
+      linkages( std::move( sink.linkages ) ),
+      packages( std::move( sink.packages ) ) {}
     Sink( const Sink& ) = delete;
 
   protected:  // lifetime control
@@ -35,19 +38,21 @@ namespace posixFS {
 
   public:
     auto  Entities() -> mtc::api<mtc::IByteStream> override {  return entities;  }
-    auto  Contents() -> mtc::api<mtc::IByteStream> override  {  return contents;  }
-    auto  Chains() -> mtc::api<mtc::IByteStream> override {  return blocks;  }
+    auto  Contents() -> mtc::api<mtc::IByteStream> override {  return contents;  }
+    auto  Linkages() -> mtc::api<mtc::IByteStream> override {  return linkages;  }
+    auto  Packages() -> mtc::api<IStorage::IDumpStore> override {  return packages;  }
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     void  Remove() override;
 
   protected:
     StoragePolicies                 policies;
-    bool                            autoRemove = true;
+    bool                            doRemove = true;
 
     mtc::api<mtc::IByteStream>      entities;
     mtc::api<mtc::IByteStream>      contents;
-    mtc::api<mtc::IByteStream>      blocks;
+    mtc::api<mtc::IByteStream>      linkages;
+    mtc::api<IStorage::IDumpStore>  packages;
 
   };
 
@@ -59,10 +64,12 @@ namespace posixFS {
 
     if ( rcount == 0 )
     {
-      entities = nullptr;  blocks = nullptr;
+      entities = nullptr;
+      linkages = nullptr;
       contents = nullptr;
+      packages = nullptr;
 
-      if ( autoRemove )
+      if ( doRemove )
         Sink::Remove();
 
       delete this;
@@ -72,29 +79,34 @@ namespace posixFS {
 
   auto  Sink::Commit() -> mtc::api<IStorage::ISerialized>
   {
-    auto  policy = policies.GetPolicy( status );
+    auto  policy = policies.GetPolicy( bulletin );
+    int   handle;
 
     if ( policy == nullptr )
       throw std::invalid_argument( "policy does not contain record for '.stats' file" );
 
     entities = nullptr;
     contents = nullptr;
-    blocks   = nullptr;
+    linkages = nullptr;
+    packages = nullptr;
 
-    close(
-      open( policy->GetFilePath( status ).c_str(), O_CREAT + O_RDWR, 0644 ) );
+    handle = open( policy->GetFilePath( Unit::bulletin ).c_str(), O_CREAT + O_RDWR, 0644 );
+      write( handle, "index completion marker\n", 24 );
+    close( handle );
 
-    autoRemove = false;
+    doRemove = false;
 
     return OpenSerial( policies );
   }
 
   void  Sink::Remove()
   {
-    entities = nullptr;  blocks = nullptr;
+    entities = nullptr;
     contents = nullptr;
+    linkages = nullptr;
+    packages = nullptr;
 
-    for ( auto unit: { Unit::entities, Unit::blocks, Unit::contents, Unit::status } )
+    for ( auto unit: { Unit::packages, Unit::linkages, Unit::contents, Unit::entities, Unit::bulletin } )
     {
       auto  policy = policies.GetPolicy( unit );
 
@@ -159,7 +171,7 @@ namespace posixFS {
 
   auto  CreateSink( const StoragePolicies& policies ) -> mtc::api<IStorage::IIndexStore>
   {
-    auto  units = std::initializer_list<Unit>{ entities, contents, blocks };
+    auto  units = std::initializer_list<Unit>{ entities, contents, linkages, packages };
     auto  stamp = CaptureIndex( units, policies, policies.IsInstance() );
     Sink  aSink( policies.GetInstance( stamp ) );
 
@@ -168,9 +180,10 @@ namespace posixFS {
       ->GetFilePath( entities ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
     aSink.contents = mtc::OpenBufStream( aSink.policies.GetPolicy( contents )
       ->GetFilePath( contents ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
-    aSink.blocks   = mtc::OpenBufStream( aSink.policies.GetPolicy( blocks )
-      ->GetFilePath( blocks ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
-//    aSink.images   = mtc::OpenFileStream( policies.GetPolicy( images )->GetFilePath( images, stamp ).c_str(), O_RDWR );
+    aSink.linkages   = mtc::OpenBufStream( aSink.policies.GetPolicy( linkages )
+      ->GetFilePath( linkages ).c_str(), O_RDWR, 0x8000, mtc::enable_exceptions );
+    aSink.packages   = CreateDumpStore( mtc::OpenFileStream( aSink.policies.GetPolicy( packages )
+      ->GetFilePath( packages ).c_str(), O_RDWR ).ptr() );
 
     return new Sink( std::move( aSink ) );
   }

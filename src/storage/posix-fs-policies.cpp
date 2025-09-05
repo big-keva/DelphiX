@@ -96,7 +96,7 @@ namespace posixFS {
 
   auto  StoragePolicies::Open( const std::string& generic_path ) -> StoragePolicies
   {
-    return StoragePolicies( { { Unit( (status << 1) - 1 ), memory_mapped, generic_path } } );
+    return StoragePolicies( { { Unit( (bulletin << 1) - 1 ), memory_mapped, generic_path } } );
   }
 
   auto  StoragePolicies::OpenInstance( const std::string& instance_path ) -> StoragePolicies
@@ -104,7 +104,7 @@ namespace posixFS {
     StoragePolicies policies;
 
     (policies.impl = new Impl( true ))
-      ->push_back( { Unit( (status << 1) - 1 ), memory_mapped, instance_path } );
+      ->push_back( { Unit( (bulletin << 1) - 1 ), memory_mapped, instance_path } );
 
     return policies;
   }
@@ -146,11 +146,10 @@ namespace posixFS {
     switch ( unit )
     {
       case entities:    return "entities";
-      case attributes:  return "attributes";
       case contents:    return "contents";
-      case blocks:      return "blocks";
-      case images:      return "images";
-      case status:      return "status";
+      case linkages:    return "linkages";
+      case packages:    return "packages";
+      case bulletin:    return "bulletin";
       default:          throw std::invalid_argument( "invalid Unit id" );
     }
   }

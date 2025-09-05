@@ -59,14 +59,14 @@ namespace posixFS {
   auto  Storage::ListIndices() -> mtc::api<ISourceList>
   {
     auto  theInstances = std::vector<StoragePolicies>();
-    auto  statusPolicy = policies.GetPolicy( Unit::status );
+    auto  statusPolicy = policies.GetPolicy( Unit::bulletin );
     auto  pathTemplate = std::string();
     auto  theDirectory = mtc::directory();
 
     if ( statusPolicy == nullptr )
       return nullptr;
 
-    pathTemplate = statusPolicy->GetFilePath( Unit::status, "*" );
+    pathTemplate = statusPolicy->GetFilePath( Unit::bulletin, "*" );
     theDirectory = mtc::directory::Open( pathTemplate.c_str(), mtc::directory::attr_file );
 
     if ( policies.IsInstance() )
@@ -87,6 +87,10 @@ namespace posixFS {
 
           sortedSuffix.push_back( std::move( toSuffix) );
         }
+      std::sort( sortedSuffix.begin(), sortedSuffix.end() );
+
+      for ( auto& suffix: sortedSuffix )
+        theInstances.emplace_back( policies.GetInstance( suffix ) );
     }
 
     return !theInstances.empty() ? new SourceList( std::move( theInstances ) ) : nullptr;

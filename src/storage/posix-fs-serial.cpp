@@ -1,4 +1,5 @@
 # include "../../storage/posix-fs.hpp"
+# include "posix-fs-dump-store.hpp"
 # include <mtc/fileStream.h>
 # include <mtc/wcsstr.h>
 # include <stdexcept>
@@ -20,8 +21,8 @@ namespace posixFS {
   public:
     auto  Entities() -> mtc::api<const mtc::IByteBuffer> override;
     auto  Contents() -> mtc::api<const mtc::IByteBuffer> override;
-    auto  Blocks() -> mtc::api<mtc::IFlatStream> override;
-
+    auto  Linkages() -> mtc::api<mtc::IFlatStream> override;
+    auto  Packages() -> mtc::api<IStorage::IDumpStore> override;
     auto  Commit() -> mtc::api<ISerialized> override;
     void  Remove() override;
 
@@ -32,7 +33,8 @@ namespace posixFS {
 
     mtc::api<const mtc::IByteBuffer>      entities;
     mtc::api<const mtc::IByteBuffer>      contents;
-    mtc::api<      mtc::IFlatStream>      blocks;
+    mtc::api<      mtc::IFlatStream>      linkages;
+    mtc::api<IStorage::IDumpStore>        packages;
 
   };
 
@@ -66,18 +68,36 @@ namespace posixFS {
   */
   auto  Serialized::Entities() -> mtc::api<const mtc::IByteBuffer>
   {
-    return LoadByteBuffer( policies, Unit::entities );
+    if ( entities == nullptr )
+      entities = LoadByteBuffer( policies, Unit::entities );
+    return entities;
   }
 
   auto  Serialized::Contents() -> mtc::api<const mtc::IByteBuffer>
   {
-    return LoadByteBuffer( policies, Unit::contents );
+    if ( contents == nullptr )
+      contents = LoadByteBuffer( policies, Unit::contents );
+    return contents;
   }
 
-  auto  Serialized::Blocks() -> mtc::api<mtc::IFlatStream>
+  auto  Serialized::Linkages() -> mtc::api<mtc::IFlatStream>
   {
-    return blocks = mtc::OpenFileStream( policies.GetPolicy( Unit::blocks )->GetFilePath( Unit::blocks ).c_str(),
-      O_RDONLY, mtc::enable_exceptions ).ptr();
+    if ( linkages == nullptr )
+    {
+      linkages = mtc::OpenFileStream( policies.GetPolicy( Unit::linkages )->GetFilePath( Unit::linkages ).c_str(),
+        O_RDONLY, mtc::enable_exceptions ).ptr();
+    }
+    return linkages;
+  }
+
+  auto  Serialized::Packages() -> mtc::api<IStorage::IDumpStore>
+  {
+    if ( packages == nullptr )
+    {
+      packages = CreateDumpStore( mtc::OpenFileStream( policies.GetPolicy( Unit::packages )->GetFilePath( Unit::packages ).c_str(),
+        O_RDONLY, mtc::disable_exceptions ).ptr() );
+    }
+    return packages;
   }
 
   auto  Serialized::Commit() -> mtc::api<ISerialized>
@@ -87,10 +107,12 @@ namespace posixFS {
 
   void  Serialized::Remove()
   {
-    entities = nullptr;  blocks = nullptr;
+    entities = nullptr;
+    linkages = nullptr;
     contents = nullptr;
+    packages = nullptr;
 
-    for ( auto unit: { Unit::entities, Unit::blocks, Unit::contents, Unit::images, Unit::status } )
+    for ( auto unit: { Unit::entities, Unit::linkages, Unit::contents, Unit::packages, Unit::bulletin } )
     {
       auto  policy = policies.GetPolicy( unit );
 
