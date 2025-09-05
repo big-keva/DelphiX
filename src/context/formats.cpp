@@ -1,6 +1,19 @@
-# if !defined( __DelphiX_src_context_formats_hpp__ )
-# define __DelphiX_src_context_formats_hpp__
-# include "../../text-api.hpp"
+# include "../../context/formats.hpp"
+# include "../../contents.hpp"
+
+using SerialFn = std::function<void(const void*, size_t)>;
+
+template <>
+SerialFn* Serialize( SerialFn* f, const void* p, size_t l )
+{
+  return f != nullptr ? (*f)( p, l ), f : nullptr;
+}
+
+template <>
+std::vector<char>* Serialize( std::vector<char>* o, const void* p, size_t l )
+{
+  return o != nullptr ? o->insert( o->end(), (const char*)p, l + (const char*)p ), o : nullptr;
+}
 
 namespace DelphiX {
 namespace context {
@@ -19,18 +32,95 @@ namespace formats {
 
   public:
     void  AddMarkup( const FormatTag& );
-    void  SetMarkup( const Slice<FormatTag>& );
+    auto  SetMarkup( const Slice<const FormatTag>& ) -> Compressor&;
     auto  GetBufLen() const -> size_t;
     template <class O>
     auto  Serialize( O* ) const -> O*;
   };
 
-  inline  auto  Unpack(
+  // Pack formats funcs
+
+  template <class O>
+  void  Pack( O* o, const Slice<const FormatTag<unsigned>>& in )
+  {
+    Compressor().SetMarkup( in ).Serialize( o );
+  }
+
+  template <class O>
+  void  Pack( O* o, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+  {
+    Compressor  compressor;
+
+    for ( auto& ft: in )
+    {
+      auto  pf = fh.Add( ft.format );
+
+      if ( pf != nullptr )
+        compressor.AddMarkup( { pf->id, ft.uLower, ft.uLower } );
+    }
+    compressor.Serialize( o );
+  }
+
+  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const FormatTag<unsigned>>& in )
+    {  return Pack<SerialFn>( &fn, in );  }
+  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+    {  return Pack<SerialFn>( &fn, in, fh );  }
+  void  Pack( mtc::IByteStream* ps, const Slice<const FormatTag<unsigned>>& in )
+    {  return Pack<mtc::IByteStream>( ps, in );  }
+  void  Pack( mtc::IByteStream* ps, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+    {  return Pack<mtc::IByteStream>( ps, in, fh );  }
+
+  auto  Pack( const Slice<const FormatTag<unsigned>>& in ) -> std::vector<char>
+  {
+    std::vector<char> out;
+
+    return Pack( &out, in ), out;
+  }
+
+  auto  Pack( const Slice<const FormatTag<const char*>>& in, FieldHandler& fh ) -> std::vector<char>
+  {
+    std::vector<char> out;
+
+    return Pack( &out, in, fh ), out;
+  }
+
+
+  // Unpack formats family
+
+  template <class FnFormat>
+  void  Unpack( FnFormat  fAdd, const char*& pbeg, const char* pend, unsigned base = 0 )
+  {
+    int   size;
+
+    if ( (pbeg = ::FetchFrom( pbeg, size )) == nullptr || pbeg == pend )
+      return;
+
+    while ( size-- > 0 )
+    {
+      unsigned  format;
+      unsigned  ulower;
+      unsigned  uupper;
+
+      if ( (pbeg = ::FetchFrom( ::FetchFrom( ::FetchFrom( pbeg,
+        format ),
+        ulower ),
+        uupper )) == nullptr )
+        break;
+
+      fAdd( { format >> 1, ulower + base, ulower + base + uupper } );
+
+      if ( format & 1 )
+        Unpack( fAdd, pbeg, pend, ulower + base );
+    }
+  }
+
+  inline
+  auto  Unpack(
     textAPI::FormatTag<unsigned>* tbeg,
     textAPI::FormatTag<unsigned>* tend,
     const char*&                  pbeg,
     const char*                   pend,
-    unsigned                      base = 0 ) -> unsigned
+    unsigned                      base = 0 ) -> size_t
   {
     auto  torg( tbeg );
     int   size;
@@ -58,27 +148,22 @@ namespace formats {
     return tbeg - torg;
   }
 
-  inline  auto  Unpack(
-    textAPI::FormatTag<unsigned>* tbeg, size_t tlen,
-    const char*                   pbeg, size_t size ) -> unsigned
+  auto  Unpack(
+    FormatTag<unsigned>*  tbeg, FormatTag<unsigned>*  tend,
+    const char*           pbeg, const char*           pend ) -> size_t
   {
-    return Unpack( tbeg, tbeg + tlen, pbeg, pbeg + size );
+    return Unpack( tbeg, tend, pbeg, pend, 0 );
   }
 
-  template <size_t N>
-  auto  Unpack(
-    textAPI::FormatTag<unsigned>(&tags)[N],
-    const char*                   pbeg,
-    const char*                   pend ) -> unsigned
+  auto  Unpack( const Slice<const char>& pack ) -> std::vector<FormatTag<unsigned>>
   {
-    return Unpack( tags, tags + N, pbeg, pend );
-  }
+    auto  vout = std::vector<FormatTag<unsigned>>();
+    auto  sptr = pack.data();
 
-  template <size_t N>
-  auto  Unpack(
-    textAPI::FormatTag<unsigned>(&tags)[N], const char* pbeg, size_t size ) -> unsigned
-  {
-    return Unpack( tags, tags + N, pbeg, pbeg + size );
+    Unpack( [&]( const FormatTag<unsigned>& tag )
+      {  vout.push_back( tag );  }, sptr, pack.end(), 0 );
+
+    return vout;
   }
 
   // Compressor implementation
@@ -90,14 +175,15 @@ namespace formats {
       return (void)this->emplace_back( tag, this->get_allocator() );
     if ( this->back().uLower <= tag.uLower && this->back().uUpper >= tag.uUpper )
       return (void)this->back().AddMarkup( tag );
-    throw std::logic_error( "invalid tags order" );
+    throw std::logic_error( "invalid tags order @" __FILE__ ":" LINE_STRING );
   }
 
   template <class Allocator>
-  void  Compressor<Allocator>::SetMarkup( const Slice<FormatTag>& tags )
+  auto  Compressor<Allocator>::SetMarkup( const Slice<const FormatTag>& tags ) -> Compressor&
   {
     for ( auto& tag: tags )
       AddMarkup( tag );
+    return *this;
   }
 
   template <class Allocator>
@@ -231,5 +317,3 @@ namespace formats {
 */
 
 }}}
-
-# endif   // !__DelphiX_src_context_formats_hpp__
