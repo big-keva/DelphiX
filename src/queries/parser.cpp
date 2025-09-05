@@ -100,6 +100,9 @@ template <class T>
 
   auto  GetExpLen( const Token* beg, const Token* end ) -> size_t
   {
+    size_t  len;
+    bool    esc;
+
     if ( beg == end )
       return 0;
 
@@ -161,9 +164,44 @@ template <class T>
       return op.size;
 
    /*
-    * else it is a single word
+    * else the expression length is either 1, or, if it is a wildcard expression,
+    * a sequence; check if has not escaped * and ?
     */
-    return 1;
+    esc = IsChar( *beg, '\\' );
+
+    for ( len = 1; beg + len != end && !beg[len].LeftSpaced(); ++len )
+    {
+      if ( beg[len].uFlags & textAPI::TextToken::is_punct )
+      {
+        if ( IsChar( beg[len], '\\' ) ) esc = !esc;
+          else
+        if ( IsChar( beg[len], '*' ) || IsChar( beg[len], '?' ) )
+        {
+          if ( esc )
+            return len > 1 ? len - 1 : len + 1;
+        }
+          else
+        return len;
+      }
+    }
+    return len;
+  }
+
+  auto  CreateWord( const Token* ptrtop, const Token* ptrend ) -> mtc::zval
+  {
+    auto  mkword = mtc::widestr();
+    auto  isText = true;
+
+    for ( auto esc = false; ptrtop != ptrend; ++ptrtop )
+    {
+      if ( IsChar( *ptrtop, '\\' ) && !esc )  esc = true;
+        else
+      {
+        isText &= esc || !(IsChar( *ptrtop, '*' ) || IsChar( *ptrtop, '?' ));
+        mkword += { ptrtop->pwsstr, ptrtop->length };
+      }
+    }
+    return !isText ? mtc::zmap{ { "wildcard", mkword } } : mtc::zval( mkword );
   }
 
   auto  ParseQuery( const Token* ptrtop, const Token* ptrend ) -> mtc::zval
@@ -245,15 +283,9 @@ template <class T>
         return mtc::zmap{ { divide.to_string(), std::move( subset ) } };
       }
 
-     /*
-      * Проверить одиночное слово
-      */
-      if ( ptrend - ptrtop == 1 )
-        return mtc::widestr( ptrtop->pwsstr, ptrtop->length );
-
-     /*
-      * Проверить, не функция ли
-      */
+      /*
+       * Проверить, не функция ли
+       */
       for ( auto fn = GetFunction( ptrtop, ptrend ); fn.code != Function::Unknown && fn.size == ptrend - ptrtop; )
       {
         switch ( fn.code )
@@ -267,10 +299,15 @@ template <class T>
         }
       }
 
-     /*
-      * Разбить последовательность терминов
-      */
-      for ( auto pwnext = ptrtop; pwnext != ptrend; pwnext += explen )
+    /*
+     * Разбить последовательность терминов, заранее зная, что как минимум первый в ряду - именно
+     * термин, а не функция, не скобочная конструкция и не цитата
+     *
+     * Создать первый элемент в последовательном разбиении фразы без операторов и функций
+     */
+      subset.emplace_back( CreateWord( ptrtop, ptrtop + (explen = GetExpLen( ptrtop, ptrend )) ) );
+
+      for ( auto pwnext = ptrtop + explen; pwnext != ptrend; pwnext += explen )
       {
         explen = GetExpLen( pwnext, ptrend );
 
@@ -299,11 +336,11 @@ template <class T>
 
   // check length and divider comma
     if ( ptrtop + 3 > ptrend || ptrtop[1] != ',' )
-      throw ParseError( "'context, query' non-zero integer context expected" );
+      throw ParseError( "context limit and query divided by comma expected as context limit @" __FILE__ ":" LINE_STRING );
 
   // get context length
     if ( ulimit == 0 || pwsend != ptrtop->pwsstr + ptrtop->length )
-      throw ParseError( "integer context expected" );
+      throw ParseError( "integer context limit expected @" __FILE__ ":" LINE_STRING );
 
     return mtc::zmap{
       { "limit", mtc::zmap{

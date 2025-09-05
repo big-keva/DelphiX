@@ -19,6 +19,9 @@ namespace queries {
     if ( op == "word" )
       return (void)(terms[op.GetString()] = mtc::zmap{ { "count", uint32_t(0) } });
 
+    if ( op == "wildcard" )
+      return (void)(terms[widechar('{') + op.GetString() + widechar('}')] = mtc::zmap{ { "count", uint32_t(0) } });
+
     if ( op == "&&" || op == "||" || op == "quote" || op == "order" || op == "fuzzy" )
       return LoadQueryTerms( terms, op.GetVector() );
 
@@ -43,6 +46,51 @@ namespace queries {
     return LoadQueryTerms( *terms.get_zmap( "terms-range-map" ), query ), terms;
   }
 
+  auto  RankLexeme(
+    const mtc::widestr&             token,
+    const mtc::api<IContentsIndex>& index,
+    const context::Processor&       lproc ) -> mtc::zmap
+  {
+    auto  lexset = lproc.Lemmatize( token );
+    auto  weight = 1.0;
+    auto  ntotal = index->GetMaxIndex();
+    auto  ncount = uint32_t{};
+
+    for ( auto& lexeme: lexset )
+    {
+      auto  lstats = index->GetKeyStats( lexeme );
+
+      if ( lstats.nCount != 0 )
+        weight *= (1.0 - 1.0 * lstats.nCount / ntotal);
+    }
+
+    // get approximated count
+    return {
+      { "count", ncount = ntotal * (1.0 - weight) },
+      { "range", double(ncount != 0 ? log( (1.0 + ntotal) / ncount ) / log(1.0 + ntotal) : 0.0) } };
+  }
+
+  auto  RankJocker(
+    const mtc::widestr&             token,
+    const mtc::api<IContentsIndex>& index,
+    const context::Processor&       lproc ) -> mtc::zmap
+  {
+    auto  keyTempl = context::Key( 0xff, token );
+    auto  iterator = index->ListContents( keyTempl );
+    auto  docTotal = index->GetMaxIndex() * 1.0;
+    auto  negRange = 1.0;
+    auto  keyCount = uint32_t{};
+
+  // get additional probability for terms
+    for ( auto next = iterator->Curr(); next.size() != 0 && negRange >= 0.01; next = iterator->Next() )
+      negRange *= 1.0 - index->GetKeyStats( next ).nCount / docTotal;
+
+    // get approximated count
+    return {
+      { "count", keyCount = uint32_t(docTotal * (1.0 - negRange)) },
+      { "range", double(keyCount != 0 ? log( (1.0 + docTotal) / keyCount ) / log(1.0 + docTotal) : 0.0) } };
+  }
+
   auto  RankQueryTerms(
     const mtc::zmap&                terms,
     const mtc::api<IContentsIndex>& index,
@@ -59,26 +107,12 @@ namespace queries {
     for ( auto& next: *zterms.get_zmap( "terms-range-map" ) )
       if ( next.first.is_widestr() && next.second.get_type() == mtc::zval::z_zmap )
       {
-        auto  lexset = lproc.Lemmatize( next.first.to_widestr() );
-        auto  weight = 1.0;
-        auto  ncount = uint32_t{};
+        auto  keystr = mtc::widestr( next.first.to_widestr() );
 
-        for ( auto& lexeme: lexset )
-        {
-          auto  lstats = index->GetKeyStats( lexeme );
-
-          if ( lstats.nCount != 0 )
-            weight *= (1.0 - 1.0 * lstats.nCount / ntotal);
-        }
-
-      // get approximated count
-        next.second.get_zmap()->set_word32( "count", ncount = ntotal * (1.0 - weight) );
-
-      // get term range as idf with transformations
-        if ( ncount != 0 )
-          next.second.get_zmap()->set_double( "range", log( (1 + ntotal) / ncount ) / log( 1+ ntotal) );
+        if ( keystr.length() > 2 && keystr.front() == '{' && keystr.back() == '}' )
+          next.second = RankJocker( keystr.substr( 1, keystr.length() - 2 ), index, lproc );
         else
-          next.second.get_zmap()->set_double( "range", 0.0 );
+          next.second = RankLexeme( keystr, index, lproc );
       }
         else
       {

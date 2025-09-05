@@ -4,8 +4,9 @@
 namespace DelphiX {
 namespace queries {
 
-  using EntryPos = Abstract::EntryPos;
+  using Abstract = IQuery::Abstract;
   using EntrySet = Abstract::EntrySet;
+  using EntryPos = EntrySet::EntryPos;
 
   struct ZeroForm
     {  const char* operator()( const char* src, uint8_t& fid ) const {  return fid = 0xff, src;  }  };
