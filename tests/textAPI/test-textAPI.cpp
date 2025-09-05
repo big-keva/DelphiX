@@ -23,7 +23,7 @@ public:
   ByteStreamOnString( std::string& s ): str( s )
     {}
   uint32_t  Get(       void*, uint32_t ) override
-    {  throw std::logic_error("not implemented");  }
+    {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
   uint32_t  Put( const void* p, uint32_t l ) override
     {  str += std::string( (const char*)p, l );  return l;  }
   auto  ptr() const -> IByteStream*
