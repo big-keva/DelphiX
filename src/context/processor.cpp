@@ -51,10 +51,7 @@ namespace context {
       bckFmt.push_back( beg );
     }
     std::sort( bckFmt.begin(), bckFmt.end(), []( textAPI::MarkupTag* a, textAPI::MarkupTag* b )
-      {
-        int  rescmp = a->uUpper - b->uUpper;
-        return rescmp != 0 ? rescmp < 0 : a->uLower < b->uLower;
-      } );
+      {  return a->uUpper < b->uUpper;  } );
 
     // open and close the items
     auto  fwdtop = fwdFmt.begin();
@@ -64,12 +61,10 @@ namespace context {
     {
       auto& rfword = tokens[windex];
       auto  uLower = rfword.offset;
-      auto  uUpper = rfword.offset + rfword.length - 1;
+      auto  uUpper = windex < tokens.size() - 1 ? tokens[windex + 1].offset : rfword.offset + rfword.length;
 
-      while ( fwdtop != fwdFmt.end() && (*fwdtop)->uLower <= uLower )
-        (*fwdtop++)->uLower = windex;
-      while ( bcktop != bckFmt.end() && (*bcktop)->uUpper <= uUpper )
-        (*bcktop++)->uUpper = windex;
+      while ( fwdtop != fwdFmt.end() && (*fwdtop)->uLower <= uLower ) (*fwdtop++)->uLower = windex;
+      while ( bcktop != bckFmt.end() && (*bcktop)->uUpper <  uUpper ) (*bcktop++)->uUpper = windex;
     }
     while ( fwdtop != fwdFmt.end() )
       (*fwdtop++)->uLower = tokens.size() - 1;

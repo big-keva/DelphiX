@@ -1,5 +1,5 @@
 # include "../../context/x-contents.hpp"
-# include "formats.hpp"
+# include "../../context/formats.hpp"
 # include <mtc/arbitrarymap.h>
 # include <mtc/arena.hpp>
 
@@ -111,8 +111,6 @@ namespace context {
 
     void  AddRecord( const entry_type& entry )
     {
-      if ( this->size() == this->capacity() )
-        this->reserve( this->size() + 0x10 );
       this->push_back( entry );
     }
     auto  BlockType() const -> unsigned override
@@ -284,7 +282,7 @@ namespace context {
     FieldHandler&                           fman ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api( new Contents() );
-    auto  tag_pack = formats::Compressor();
+    auto  tag_pack = formats::Pack( mkup, fman );
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
       for ( auto& term: lemm[i] )
@@ -295,18 +293,10 @@ namespace context {
           contents->AddEntry<Compressor<21, RichEntry, Contents::AllocatorType>>( term, { i, term.GetForms().front() } );
       }
 
-    for ( auto& next: mkup )
-    {
-      auto  pfield = fman.Add( next.format );
+    auto  ftpack = contents->SetBlock( Key( "fmt" ), 99, ::GetBufLen( lemm.size() ) + tag_pack.size() );
+      ::Serialize( ::Serialize( ftpack.data(), lemm.size() ), tag_pack.data(), tag_pack.size() );
 
-      if ( pfield != nullptr )
-        tag_pack.AddMarkup( { pfield->id, next.uLower, next.uUpper } );
-    }
-
-    auto  ftpack = contents->SetBlock( Key( "fmt" ), 99, ::GetBufLen( lemm.size() ) + tag_pack.GetBufLen() );
-      tag_pack.Serialize( ::Serialize( ftpack.data(), lemm.size() ) );
-
-    return (void)mkup, contents.ptr();
+    return contents.ptr();
   }
 
 }}

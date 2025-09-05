@@ -253,6 +253,30 @@ namespace context {
     return fields;
   }
 
-  auto  SaveFields( const FieldManager& fields ) -> mtc::array_zmap;
+  auto  SaveFields( const FieldManager& fields ) -> mtc::array_zmap
+  {
+    mtc::array_zmap serial;
+
+    for ( auto u = 0; ; ++u )
+    {
+      auto  pfield = fields.Get( u );
+
+      if ( pfield == nullptr )
+        break;
+
+      serial.push_back( {
+        { "name",     std::string( pfield->name ) },
+        { "id",       pfield->id },
+        { "options",  pfield->options },
+        { "indents",  mtc::zmap{
+          { "l", mtc::zmap{
+            { "min", pfield->indents.lower.min },
+            { "max", pfield->indents.lower.max } } },
+          { "h", mtc::zmap{
+            { "min", pfield->indents.upper.min },
+            { "max", pfield->indents.upper.max } } } } } } );
+    }
+    return serial;
+  }
 
 }}
