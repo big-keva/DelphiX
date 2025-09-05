@@ -36,7 +36,7 @@ TestItEasy::RegisterFunc  test_parser( []()
             "d" } } } ) );
       }
     }
-    SECTION( "sequences are treated as 'find 'near'est match'" )
+    SECTION( "sequences are treated as 'find nearest match'" )
     {
       REQUIRE( mtc::to_string( queries::ParseQuery( "a b c" ) ) == mtc::to_string( mtc::zmap{
         { "fuzzy", mtc::array_zval{ "a", "b", "c" } } } ) );
@@ -99,6 +99,28 @@ TestItEasy::RegisterFunc  test_parser( []()
             { "field", mtc::array_charstr{ "body", "title" } },
             { "query", mtc::zmap{
               { "fuzzy", mtc::array_charstr{ "a", "b" } } } } } } } ) );
+      }
+    }
+    SECTION( "wildcard operations" )
+    {
+      SECTION( "* and ? are treated as wildcards" )
+      {
+        REQUIRE( mtc::to_string( queries::ParseQuery( "a*" ) ) == mtc::to_string( mtc::zmap{
+          { "wildcard", "a*" } } ) );
+        REQUIRE( mtc::to_string( queries::ParseQuery( "a* ?*b" ) ) == mtc::to_string( mtc::zmap{
+          { "fuzzy", mtc::array_zmap{
+            { { "wildcard", "a*" } },
+            { { "wildcard", "?*b" } } } } } ) );
+      }
+      SECTION( "'*' and '?' escaped by '\\' are treated as regular characters" )
+      {
+        REQUIRE( mtc::to_string( queries::ParseQuery( "a\\*" ) ) == mtc::to_string( mtc::zmap{
+          { "fuzzy", mtc::array_charstr{ "a", "*" } } } ) );
+        REQUIRE( mtc::to_string( queries::ParseQuery( "a* \\?*b" ) ) == mtc::to_string( mtc::zmap{
+          { "fuzzy", mtc::array_zval{
+            mtc::zmap{ { "wildcard", "a*" } },
+            "\?",
+            mtc::zmap{ { "wildcard", "*b" } } } } } ) );
       }
     }
   }

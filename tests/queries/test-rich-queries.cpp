@@ -9,12 +9,10 @@
 using namespace DelphiX;
 using namespace DelphiX::textAPI;
 
-auto  _W( const char* s ) -> mtc::widestr
+static  auto  _W( const char* s ) -> mtc::widestr
   {  return codepages::mbcstowide( codepages::codepage_utf8, s );  }
 
-context::FieldManager fieldMan;
-
-auto  MakeStats( const std::initializer_list<std::pair<const char*, double>>& init ) -> mtc::zmap
+static  auto  MakeStats( const std::initializer_list<std::pair<const char*, double>>& init ) -> mtc::zmap
 {
   auto  ts = mtc::zmap();
 
@@ -22,6 +20,8 @@ auto  MakeStats( const std::initializer_list<std::pair<const char*, double>>& in
     ts.set_zmap( _W( term.first ), { { "range", term.second } } );
   return { { "terms-range-map", ts } };
 }
+
+static  context::FieldManager fieldMan;
 
 auto  CreateRichIndex( const context::Processor& lp, const std::initializer_list<Document>& docs ) -> mtc::api<IContentsIndex>
 {
@@ -39,21 +39,10 @@ auto  CreateRichIndex( const context::Processor& lp, const std::initializer_list
     lp.WordBreak( ucBody, ucText ) ), ucText );
 
 //    ucBody.Serialize( dump_as::Json( dump_as::MakeOutput( stdout ) ) );
-    auto  ximage = GetRichContents( ucBody.GetLemmas(), ucBody.GetMarkup(), fieldMan );
-    ct->SetEntity( mtc::strprintf( "doc-%u", id++ ), ximage.ptr() );
+    ct->SetEntity( mtc::strprintf( "doc-%u", id++ ),
+      GetRichContents( ucBody.GetLemmas(), ucBody.GetMarkup(), fieldMan ).ptr() );
   }
   return ct;
-}
-
-bool  MatchIds( mtc::api<queries::IQuery> query, const std::initializer_list<uint32_t>& ids )
-{
-  auto  found = query->SearchDoc( 1 );
-  auto  idsIt = ids.begin();
-
-  for ( ; idsIt != ids.end() && found != uint32_t(-1); ++idsIt, found = query->SearchDoc( found + 1 ) )
-    if ( *idsIt != found )
-      return false;
-  return idsIt == ids.end() && found == uint32_t(-1);
 }
 
 TestItEasy::RegisterFunc  test_rich_queries( []()
