@@ -42,6 +42,7 @@ add_library(DelphiX
 	src/context/x-contents.cpp
 	src/context/fields-man.cpp
 	src/context/processor.cpp
+	src/context/formats.cpp
 
 	src/enquote/compressor.cpp
 
@@ -53,17 +54,20 @@ add_library(DelphiX
 	src/indexer/merger-contents.cpp
 	src/indexer/override-entities.cpp
 	src/indexer/static-contents.cpp
+	src/indexer/strmatch.cpp
 
 	src/queries/parser.cpp
 	src/queries/query-terms.cpp
 	src/queries/query-tools.cpp
 	src/queries/base-queries.cpp
 	src/queries/rich-queries.cpp
+	src/queries/mini-queries.cpp
 
 	src/storage/posix-fs-output.cpp
 	src/storage/posix-fs-serial.cpp
 	src/storage/posix-fs-storage.cpp
 	src/storage/posix-fs-policies.cpp
+	src/storage/posix-fs-dump-store.cpp
 
 	src/textAPI/dump-as-json.cpp
 	src/textAPI/dump-as-tags.cpp

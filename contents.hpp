@@ -29,6 +29,7 @@ namespace DelphiX
     virtual auto  GetId() const -> EntityId = 0;
     virtual auto  GetIndex() const -> uint32_t = 0;
     virtual auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> = 0;
+    virtual auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> = 0;
     virtual auto  GetVersion() const -> uint64_t = 0;
   };
 
@@ -37,21 +38,18 @@ namespace DelphiX
     struct IIndexStore;       // interface to write indices
     struct ISerialized;       // interface to read indices
     struct ISourceList;
+    struct IDumpStore;
 
     virtual auto  ListIndices() -> mtc::api<ISourceList> = 0;
     virtual auto  CreateStore() -> mtc::api<IIndexStore> = 0;
-  };
-
-  struct IStorage::ISourceList: Iface
-  {
-    virtual auto  Get() -> mtc::api<ISerialized> = 0;
   };
 
   struct IStorage::IIndexStore: Iface
   {
     virtual auto  Entities() -> mtc::api<mtc::IByteStream> = 0;
     virtual auto  Contents() -> mtc::api<mtc::IByteStream> = 0;
-    virtual auto  Chains() -> mtc::api<mtc::IByteStream> = 0;
+    virtual auto  Linkages() -> mtc::api<mtc::IByteStream> = 0;
+    virtual auto  Packages() -> mtc::api<IDumpStore> = 0;
 
     virtual auto  Commit() -> mtc::api<ISerialized> = 0;
     virtual void  Remove() = 0;
@@ -63,7 +61,8 @@ namespace DelphiX
 
     virtual auto  Entities() -> mtc::api<const mtc::IByteBuffer> = 0;
     virtual auto  Contents() -> mtc::api<const mtc::IByteBuffer> = 0;
-    virtual auto  Blocks() -> mtc::api<mtc::IFlatStream> = 0;
+    virtual auto  Linkages() -> mtc::api<mtc::IFlatStream> = 0;
+    virtual auto  Packages() -> mtc::api<IStorage::IDumpStore> = 0;
 
     virtual auto  Commit() -> mtc::api<ISerialized> = 0;
     virtual void  Remove() = 0;
@@ -78,12 +77,23 @@ namespace DelphiX
     virtual void  Commit() = 0;
   };
 
+  struct IStorage::ISourceList: Iface
+  {
+    virtual auto  Get() -> mtc::api<ISerialized> = 0;
+  };
+
+  struct IStorage::IDumpStore: Iface
+  {
+    virtual auto  Get( int64_t ) const -> mtc::api<const mtc::IByteBuffer> = 0;
+    virtual auto  Put( const void*, size_t ) -> int64_t = 0;
+  };
+
   struct IContentsIndex: mtc::Iface
   {
     struct IEntities;
     struct IIndexAPI;
-    struct IEntityIterator;
-    struct IRecordIterator;
+    struct IEntitiesList;
+    struct IContentsList;
 
    /*
     * entity details block statistics
@@ -116,7 +126,9 @@ namespace DelphiX
     * and indexable properties
     */
     virtual auto  SetEntity( EntityId,
-      mtc::api<const IContents> = {}, const StrView& = {} ) -> mtc::api<const IEntity> = 0;
+      mtc::api<const IContents> keys = {},
+      const StrView&            xtra = {},
+      const StrView&            beef = {} ) -> mtc::api<const IEntity> = 0;
 
    /*
     * SetExtras()
@@ -129,7 +141,6 @@ namespace DelphiX
     * Index statistics and service information
     */
     virtual auto  GetMaxIndex() const -> uint32_t = 0;
-//    virtual auto  CountEntities() const -> uint32_t = 0;
 
    /*
     * Blocks search api
@@ -140,10 +151,10 @@ namespace DelphiX
    /*
     * Iterators
     */
-    virtual auto  GetEntityIterator( EntityId ) -> mtc::api<IEntityIterator> = 0;
-    virtual auto  GetEntityIterator( uint32_t ) -> mtc::api<IEntityIterator> = 0;
+    virtual auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> = 0;
+    virtual auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> = 0;
 
-    virtual auto  GetRecordIterator( const StrView& = {} ) -> mtc::api<IRecordIterator> = 0;
+    virtual auto  ListContents( const StrView& = {} ) -> mtc::api<IContentsList> = 0;
    /*
     * Commit()
     *
@@ -199,13 +210,13 @@ namespace DelphiX
     virtual auto  Type() const -> uint32_t = 0;
   };
 
-  struct IContentsIndex::IEntityIterator: Iface
+  struct IContentsIndex::IEntitiesList: Iface
   {
     virtual auto  Curr() -> mtc::api<const IEntity> = 0;
     virtual auto  Next() -> mtc::api<const IEntity> = 0;
   };
 
-  struct IContentsIndex::IRecordIterator: Iface
+  struct IContentsIndex::IContentsList: Iface
   {
     virtual auto  Curr() -> std::string = 0;
     virtual auto  Next() -> std::string = 0;

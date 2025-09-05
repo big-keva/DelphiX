@@ -6,7 +6,25 @@
 namespace DelphiX {
 namespace queries {
 
-  struct Abstract
+  /*
+  * IQuery
+  *
+  * Представление вычислителя поисковых запросов.
+  *
+  * Находит идентификаторы документов и возвращает структуры данных, годные для ранжирования.
+  *
+  * Временем жизни этих структур управляет вычислитель запросов, так что после перехода
+  * к следующему документу данные структуры окажутся некорректными.
+  */
+  struct IQuery: mtc::Iface
+  {
+    struct  Abstract;
+
+    virtual uint32_t  SearchDoc( uint32_t ) = 0;
+    virtual Abstract  GetTuples( uint32_t ) = 0;
+  };
+
+  struct IQuery::Abstract
   {
     struct BM25Term
     {
@@ -16,14 +34,14 @@ namespace queries {
       unsigned  occurs;      // term occurences
     };
 
-    struct EntryPos
-    {
-      unsigned  termID;
-      unsigned  offset;
-    };
-
     struct EntrySet
     {
+      struct EntryPos
+      {
+        unsigned  termID;
+        unsigned  offset;
+      };
+
       using Limits = struct
       {
         unsigned uMin;
@@ -69,29 +87,13 @@ namespace queries {
       Rich = 2
     };
 
-    unsigned    dwMode = None;  
-    unsigned    nWords = 0;     // общее количество слов в документе
+    unsigned  dwMode = None;
+    unsigned  nWords = 0;     // общее количество слов в документе
     union
     {
       Entries entries;
       Factors factors;
     };
-  };
-
-  /*
-  * IQuery
-  *
-  * Представление вычислителя поисковых запросов.
-  *
-  * Находит идентификаторы документов и возвращает структуры данных, годные для ранжирования.
-  *
-  * Временем жизни этих структур управляет вычислитель запросов, так что после перехода
-  * к следующему документу данные структуры окажутся некорректными.
-  */
-  struct IQuery: mtc::Iface
-  {
-    virtual uint32_t  SearchDoc( uint32_t ) = 0;
-    virtual Abstract  GetTuples( uint32_t ) = 0;
   };
 
 }}

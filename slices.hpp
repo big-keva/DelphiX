@@ -57,13 +57,11 @@ namespace DelphiX
   public:
     StrView( mtc::api<const mtc::IByteBuffer> );
   template <class Allocator>
-    StrView( const std::basic_string<char, std::char_traits<char>, Allocator>& src ):
-      StrView( src.data(), src.size() ) {}
+    StrView( const std::basic_string<char, std::char_traits<char>, Allocator>& src ): StrView( src.data(), src.size() ) {}
   template <class Allocator>
-    StrView( const std::vector<char, Allocator>& src ):
-      StrView( src.data(), src.size() ) {}
-    StrView( const std::string_view& src ):
-      StrView( src.data(), src.size() ) {}
+    StrView( const std::vector<char, Allocator>& src ): StrView( src.data(), src.size() ) {}
+  template <class ViewBytes>
+    StrView( const ViewBytes& src ): StrView( src.data(), src.size() ) {}
     StrView( const char* pch );
 
     bool  operator==( const StrView& to ) const  {  return compare( to ) == 0;  }
