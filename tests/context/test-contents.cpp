@@ -1,20 +1,11 @@
 # include "../../context/x-contents.hpp"
 # include "../../context/processor.hpp"
+# include "../../context/fields-man.hpp"
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
 using namespace DelphiX::context;
 using namespace DelphiX::textAPI;
-
-class MockFieldMan: public FieldHandler
-{
-  FieldOptions  defaultField{ 1, "defaultField" };
-
-public:
-  auto  Get( const StrView& ) const -> const FieldOptions* override {  return &defaultField;  }
-  auto  Get( unsigned ) const -> const FieldOptions*  override  {  return &defaultField;  }
-
-};
 
 auto  StrKey( const char* str ) -> Key
 {
@@ -47,7 +38,9 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
     {
       SECTION( "* as 'mini'" )
       {
-/*        if ( REQUIRE_NOTHROW( contents = GetMiniContents( body.GetLemmas(), body.GetMarkup() ) ) )
+        FieldManager  fieldMan;
+
+        if ( REQUIRE_NOTHROW( contents = GetMiniContents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )
           {
             REQUIRE_NOTHROW( contents->List( [&]( const StrView&, const StrView& value, unsigned bkType )
@@ -55,11 +48,13 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
                 REQUIRE( bkType == 0 );
                 REQUIRE( value.size() == 0 );
               } ) );
-          }*/
+          }
       }
       SECTION( "* as 'BM25'" )
       {
-/*        if ( REQUIRE_NOTHROW( contents = GetBM25Contents( body.GetLemmas(), body.GetMarkup() ) ) )
+        FieldManager  fieldMan;
+
+        if ( REQUIRE_NOTHROW( contents = GetBM25Contents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )
           {
             REQUIRE_NOTHROW( contents->List( [&]( const StrView& key, const StrView& value, unsigned bkType )
@@ -76,11 +71,10 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
                 }
               } ) );
           }
-          */
       }
       SECTION( "* as 'Rich'" )
       {
-        MockFieldMan  fieldMan;
+        FieldManager  fieldMan;
 
         if ( REQUIRE_NOTHROW( contents = GetRichContents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )

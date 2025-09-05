@@ -20,6 +20,7 @@ add_executable(test-DelphiX-context
 add_executable(test-DelphiX-queries
 	queries/test-queries-parser.cpp
 	queries/test-rich-queries.cpp
+	queries/test-mini-queries.cpp
 	test-main.cpp)
 
 add_executable(test-DelphiX-textAPI

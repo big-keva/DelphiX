@@ -26,6 +26,10 @@ class MockLang: public ILemmatizer
 
 class MockFields: public FieldHandler
 {
+  auto  Add( const StrView& ) -> FieldOptions* override
+  {
+    throw std::invalid_argument( "unexpected call @" __FILE__ ":" LINE_STRING );
+  }
   auto  Get( const StrView& name ) const -> const FieldOptions* override
   {
     if ( name == "tag-1" )
