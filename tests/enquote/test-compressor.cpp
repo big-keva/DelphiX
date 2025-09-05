@@ -12,7 +12,7 @@ class ByteStmOnStr: public mtc::IByteStream
 public:
   uint32_t  Get(       void*, uint32_t )
   {
-    throw std::logic_error( "not implemented" );
+    throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );
   }
   uint32_t  Put( const void* p, uint32_t l )
   {
