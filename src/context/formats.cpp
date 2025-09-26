@@ -56,7 +56,7 @@ namespace formats {
       auto  pf = fh.Add( ft.format );
 
       if ( pf != nullptr )
-        compressor.AddMarkup( { pf->id, ft.uLower, ft.uLower } );
+        compressor.AddMarkup( { pf->id, ft.uLower, ft.uUpper } );
     }
     compressor.Serialize( o );
   }

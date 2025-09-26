@@ -16,7 +16,9 @@ namespace DelphiX {
     {
       ofNoBreakWords = 0x00000001,
       ofKeywordsOnly = 0x00000002,
-      ofDisableIndex = 0x00010000
+      ofDisableIndex = 0x00010000,
+      ofDisableQuote = 0x00020000,
+      ofEnforceQuote = 0x00040000
     };
 
     unsigned    id;

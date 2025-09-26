@@ -30,6 +30,12 @@ namespace textAPI {
       {  return !(*this == to);  }
   };
 
+  template <> inline
+  bool  FormatTag<const char*>::operator == ( const FormatTag& to ) const
+  {
+    return strcmp( format, to.format ) == 0 && uLower == to.uLower && uUpper == to.uUpper;
+  }
+
   using MarkupTag = FormatTag<const char*>;
   using RankerTag = FormatTag<unsigned>;
 
@@ -46,8 +52,9 @@ namespace textAPI {
     uint32_t        offset;
     uint32_t        length;
 
-    auto  GetWideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
-    auto  LeftSpaced() const {  return (uFlags & lt_space) != 0;  }
+    auto  WideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
+    auto  IsSpace() const {  return (uFlags & lt_space) != 0;  }
+    auto  IsPunct() const {  return (uFlags & is_punct) != 0;  }
 
   };
 
