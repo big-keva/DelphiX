@@ -27,9 +27,6 @@ namespace formats {
   auto  Pack(
     const Slice<const FormatTag<const char*>>&, FieldHandler& ) -> std::vector<char>;
 
-  void  Unpack(
-    std::function<void(const FormatTag<unsigned>&)> );
-
   auto  Unpack(
     FormatTag<unsigned>*  tbeg, FormatTag<unsigned>*  tend,
     const char*           pbeg, const char*           pend ) -> size_t;
@@ -40,6 +37,16 @@ namespace formats {
     const char*           pbeg, size_t  srcl ) -> size_t
   {
     return Unpack( tbeg, tbeg + outl, pbeg, pbeg + srcl );
+  }
+
+  void  Unpack( std::function<void(const FormatTag<unsigned>&)>,
+    const char* pbeg, const char* pend );
+
+  inline
+  void  Unpack( std::function<void(const FormatTag<unsigned>&)> fn,
+    const char* pbeg, size_t  srcl )
+  {
+    return Unpack( fn, pbeg, pbeg + srcl );
   }
 
   template <size_t N>

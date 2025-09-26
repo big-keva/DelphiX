@@ -166,6 +166,11 @@ namespace formats {
     return vout;
   }
 
+  void  Unpack( std::function<void( const FormatTag<unsigned>& )> fAdd, const char* pbeg, const char* pend )
+  {
+    return Unpack( fAdd, pbeg, pend, 0 );
+  }
+
   // Compressor implementation
 
   template <class Allocator>

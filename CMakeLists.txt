@@ -82,3 +82,5 @@ add_library(DelphiX
 add_subdirectory(addon)
 add_subdirectory(tests)
 add_subdirectory(utils)
+
+add_subdirectory(samples)

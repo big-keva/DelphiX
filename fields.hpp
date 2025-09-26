@@ -15,7 +15,8 @@ namespace DelphiX {
     enum: unsigned
     {
       ofNoBreakWords = 0x00000001,
-      ofKeywordsOnly = 0x00000002
+      ofKeywordsOnly = 0x00000002,
+      ofDisableIndex = 0x00010000
     };
 
     unsigned    id;

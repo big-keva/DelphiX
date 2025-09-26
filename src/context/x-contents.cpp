@@ -283,8 +283,28 @@ namespace context {
   {
     auto  contents = mtc::api( new Contents() );
     auto  tag_pack = formats::Pack( mkup, fman );
+    auto  def_opts = fman.Get( "default_field" );
+    auto  no_index = std::vector<uint64_t>();
+
+  // set no_index flags
+    if ( def_opts != nullptr && (def_opts->options & FieldOptions::ofDisableIndex) != 0 )
+    {
+      mtc::bitset_set( no_index, { 0U, unsigned(lemm.size()) } );
+
+      for ( auto& next: mkup )
+      {
+        auto  pfinfo = fman.Get( next.format );
+
+        if ( pfinfo != nullptr && (pfinfo->options & FieldOptions::ofDisableIndex) == 0 )
+          mtc::bitset_del( no_index, { next.uLower, next.uUpper } );
+      }
+    }
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
+    {
+      if ( !no_index.empty() && mtc::bitset_get( no_index, i ) )
+        continue;
+
       for ( auto& term: lemm[i] )
       {
         if ( term.GetForms().empty() || term.GetForms().front() == 0xff )
@@ -292,6 +312,7 @@ namespace context {
         else
           contents->AddEntry<Compressor<21, RichEntry, Contents::AllocatorType>>( term, { i, term.GetForms().front() } );
       }
+    }
 
     auto  ftpack = contents->SetBlock( Key( "fmt" ), 99, ::GetBufLen( lemm.size() ) + tag_pack.size() );
       ::Serialize( ::Serialize( ftpack.data(), lemm.size() ), tag_pack.data(), tag_pack.size() );
