@@ -68,9 +68,9 @@ template <class T>
   auto  GetOperator( const Token* beg, const Token* end ) -> Operator
   {
     if ( *beg == '&' )
-      return { Operator::AND, ++beg != end && !beg->IsSpace() && *beg == '&' ? 2U : 1U };
+      return { Operator::AND, ++beg != end && !beg->LeftSpaced() && *beg == '&' ? 2U : 1U };
     if ( *beg == '|' )
-      return { Operator::OR,  ++beg != end && !beg->IsSpace() && *beg == '|' ? 2U : 1U };
+      return { Operator::OR,  ++beg != end && !beg->LeftSpaced() && *beg == '|' ? 2U : 1U };
     if ( *beg == '!' || *beg == '-' )
       return { Operator::NOT, 1 };
     if ( *beg == "and" )
@@ -84,7 +84,7 @@ template <class T>
 
   auto  GetFunction( const Token* beg, const Token* end ) -> Function
   {
-    if ( end - beg >= 3 && beg[1] == '(' && !beg[1].IsSpace() )
+    if ( end - beg >= 3 && beg[1] == '(' && !beg[1].LeftSpaced() )
     {
       auto  arglen = GetExpLen( beg + 1, end );
 
@@ -169,7 +169,7 @@ template <class T>
     */
     esc = IsChar( *beg, '\\' );
 
-    for ( len = 1; beg + len != end && !beg[len].IsSpace(); ++len )
+    for ( len = 1; beg + len != end && !beg[len].LeftSpaced(); ++len )
     {
       if ( beg[len].uFlags & textAPI::TextToken::is_punct )
       {
@@ -369,7 +369,7 @@ template <class T>
       {
         if ( (ptrtop->uFlags & Token::is_punct) != 0 )
           throw ParseError( "field expected" );
-        fields.emplace_back( codepages::widetombcs( codepages::codepage_utf8, ptrtop->WideStr() ) );
+        fields.emplace_back( codepages::widetombcs( codepages::codepage_utf8, ptrtop->GetWideStr() ) );
       }
     }
     if ( !waitOp )
