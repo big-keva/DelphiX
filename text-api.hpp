@@ -1,12 +1,11 @@
 # if !defined( __DelphiX_textAPI_text_api_hpp__ )
 # define __DelphiX_textAPI_text_api_hpp__
+# include "slices.hpp"
 # include <moonycode/codes.h>
 # include <mtc/interfaces.h>
 # include <mtc/serialize.h>
 # include <stdexcept>
 # include <cstdint>
-
-#include "slices.hpp"
 
 namespace DelphiX {
 namespace textAPI {
@@ -24,10 +23,14 @@ namespace textAPI {
     uint32_t    uUpper;     // end offset, bytes
 
   public:
-    bool operator==( const FormatTag& to ) const
+    bool  operator==( const FormatTag& to ) const
       {  return format == to.format && uLower == to.uLower && uUpper == to.uUpper;  }
-    bool operator!=( const FormatTag& to ) const
+    bool  operator!=( const FormatTag& to ) const
       {  return !(*this == to);  }
+    bool  Covers( uint32_t pos ) const
+      {  return pos >= uLower && pos <= uUpper;  }
+    bool  Covers( const std::pair<uint32_t, uint32_t>& span ) const
+      {  return uLower <= span.first && uUpper >= span.second;  }
   };
 
   template <> inline
@@ -44,7 +47,8 @@ namespace textAPI {
     enum: unsigned
     {
       lt_space = 1,
-      is_punct = 2
+      is_punct = 2,
+      is_first = 4
     };
 
     unsigned        uFlags;
@@ -52,9 +56,10 @@ namespace textAPI {
     uint32_t        offset;
     uint32_t        length;
 
-    auto  WideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
-    auto  IsSpace() const {  return (uFlags & lt_space) != 0;  }
-    auto  IsPunct() const {  return (uFlags & is_punct) != 0;  }
+    auto  GetWideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
+    auto  LeftSpaced() const {  return (uFlags & lt_space) != 0;  }
+    auto  IsPointing() const {  return (uFlags & is_punct) != 0;  }
+    auto  IsFirstOne() const {  return (uFlags & is_first) != 0;  }
 
   };
 
@@ -93,7 +98,7 @@ namespace textAPI {
 
   };
 
-  struct ITextView: mtc::Iface
+  struct ITextView: public mtc::Iface
   {
     virtual auto  GetBlocks() const -> Slice<const TextChunk> = 0;
     virtual auto  GetMarkup() const -> Slice<const MarkupTag> = 0;
