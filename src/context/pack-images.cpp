@@ -1,4 +1,4 @@
-# include "../../enquote/compressor.hpp"
+# include "../../context/pack-images.hpp"
 # include <mtc/arbitrarymap.h>
 # include <functional>
 
@@ -15,7 +15,8 @@ auto  Serialize( std::function<void(const void*, size_t)>* to, const void* p, si
 }
 
 namespace DelphiX {
-namespace enquote {
+namespace context {
+namespace imaging {
 
   class UtfStrBuffer: protected std::vector<widechar>
   {
@@ -31,6 +32,7 @@ namespace enquote {
       return data();
     }
   };
+
   class WordsEncoder final
   {
     mtc::arbitrarymap<unsigned> references;
@@ -38,11 +40,11 @@ namespace enquote {
   public:
     enum: unsigned
     {
-      of_1251str = 0x0,
-      of_utf8str = 0x4,
-      of_backref = 0x8,
-      of_diffref = 0xc,
-      of_bitmask = 0xc
+      of_1251str = 0x00,
+      of_utf8str = 0x08,
+      of_backref = 0x10,
+      of_diffref = 0x18,
+      of_bitmask = 0x18
     };
 
     template <class O>
@@ -52,14 +54,14 @@ namespace enquote {
 
       if ( puprev != nullptr )
       {
-        auto  asOffs = AsOffs( t, p );
-        auto  asDiff = AsDiff( t, *puprev );
+        auto  asOffs = AsOffs( t, *puprev );
+        auto  asDiff = AsDiff( t, p - *puprev );
         auto  ccOffs = ::GetBufLen( asOffs );
         auto  ccDiff = ::GetBufLen( asDiff );
 
       // get min backref
         if ( ccDiff < ccOffs )  o = ::Serialize( o, asDiff );
-          else o = ::Serialize( o, ccOffs );
+          else o = ::Serialize( o, asOffs );
 
         return *puprev = p, o;
       }
@@ -83,7 +85,7 @@ namespace enquote {
           o = ::Serialize( o, encode, cchenc );
         }
       }
-      references.Insert( t.pwsstr, t.length, p );
+      references.Insert( t.pwsstr, t.length * sizeof(widechar), p );
       return o;
     }
 
@@ -96,17 +98,17 @@ namespace enquote {
         return true;
       }
     static  auto  As1251( const textAPI::TextToken& t ) -> unsigned
-      {  return t.uFlags + ((t.length - 1) << 4);  }
+      {  return t.uFlags + ((t.length - 1) << 5);  }
     static  auto  AsUtf8( const textAPI::TextToken& t ) -> unsigned
-      {  return t.uFlags + ((t.length - 1) << 4) + of_utf8str ;  }
+      {  return t.uFlags + ((t.length - 1) << 5) + of_utf8str ;  }
     static  auto  AsDiff( const textAPI::TextToken& t, unsigned diff ) -> unsigned
-      {  return t.uFlags + ((diff - 1) << 4) + of_diffref ;  }
+      {  return t.uFlags + ((diff - 1) << 5) + of_diffref ;  }
     static  auto  AsOffs( const textAPI::TextToken& t, unsigned next ) -> unsigned
-      {  return t.uFlags + ((next - 1) << 4) + of_backref ;  }
+      {  return t.uFlags + ((next - 1) << 5) + of_backref ;  }
   };
 
   template <class O>
-  void  PackWordsTo( O* o, const Slice<const textAPI::TextToken>& words )
+  void  PackTo( O* o, const Slice<const textAPI::TextToken>& words )
   {
     WordsEncoder      wcoder;
 
@@ -116,24 +118,24 @@ namespace enquote {
       wcoder.EncodeWord( o, words[pos], pos );
   }
 
-  auto  PackWords( const Slice<const textAPI::TextToken>& words ) -> std::vector<char>
+  auto  Pack( const Slice<const textAPI::TextToken>& words ) -> std::vector<char>
   {
     std::vector<char> packed;
-      PackWordsTo( &packed, words );
+      PackTo( &packed, words );
     return packed;
   }
 
-  void  PackWords( mtc::IByteStream* o, const Slice<const textAPI::TextToken>& words )
+  void  Pack( mtc::IByteStream* o, const Slice<const textAPI::TextToken>& words )
   {
-    return PackWordsTo( o, words );
+    return PackTo( o, words );
   }
 
-  void  PackWords( std::function<void(const void*, size_t)> fn, const Slice<const textAPI::TextToken>& words )
+  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const textAPI::TextToken>& words )
   {
-    return PackWordsTo( &fn, words );
+    return PackTo( &fn, words );
   }
 
-  void  UnpackWords(
+  void  Unpack(
     std::function<void(unsigned, const Slice<const widechar>&)> addstr,
     std::function<void(unsigned, unsigned)>                     addref,
     const Slice<const char>&                                    packed )
@@ -141,12 +143,12 @@ namespace enquote {
     auto  src = mtc::sourcebuf( packed.data(), packed.size() );
     auto  inp = src.ptr();
     auto  buf = UtfStrBuffer();
-    int   len;
+    int   ncw;
 
-    if ( (inp = ::FetchFrom( inp, len )) == nullptr )
+    if ( (inp = ::FetchFrom( inp, ncw )) == nullptr )
       throw std::invalid_argument( "broken text image" );
 
-    for ( int pos = 0; pos != len; ++pos )
+    for ( int pos = 0; pos != ncw; ++pos )
     {
       unsigned  opt;
 
@@ -156,14 +158,14 @@ namespace enquote {
       switch ( opt & WordsEncoder::of_bitmask )
       {
         case WordsEncoder::of_backref:
-          addref( opt & 0x3, 1 + (opt >> 4) );
+          addref( opt & 0x3, 1 + (opt >> 5) );
           break;
         case WordsEncoder::of_diffref:
-          addref( opt & 0x3, pos - (1 + (opt >> 4)) );
+          addref( opt & 0x3, pos - (1 + (opt >> 5)) );
           break;
         case WordsEncoder::of_utf8str:
         {
-          auto  len = 1 + (opt >> 4);
+          auto  len = 1 + (opt >> 5);
           auto  str = inp->getptr();
 
           if ( (inp = ::SkipBytes( inp, len )) == nullptr )
@@ -173,12 +175,12 @@ namespace enquote {
           auto  wcs = buf.GetBuffer( cch + 1 );
 
           codepages::utf8::decode( wcs, cch + 1, str, len );
-          addstr( opt & 0x3, { wcs, len } );
+          addstr( opt & 0x7, { wcs, len } );
           break;
         }
         case WordsEncoder::of_1251str:  default:  // 0
         {
-          auto  len = 1 + (opt >> 4);
+          auto  len = 1 + (opt >> 5);
           auto  wcs = buf.GetBuffer( len );
           auto  str = inp->getptr();
           auto  out = wcs;
@@ -189,18 +191,18 @@ namespace enquote {
           for ( auto beg = str, end = beg + len; beg != end; )
             *out++ = codepages::xlatWinToUtf16[(uint8_t)*beg++];
 
-          addstr( opt & 0x3, { wcs, len } );
+          addstr( opt & 0x7, { wcs, len } );
           break;
         }
       }
     }
   }
 
-  auto  UnpackWords( const Slice<const char>& packed ) -> context::Image
+  auto  Unpack( const Slice<const char>& packed ) -> context::Image
   {
     auto  body = context::Image();
 
-    UnpackWords(
+    Unpack(
       [&]( unsigned uflags, const Slice<const widechar>& inp )
       {
         body.GetTokens().push_back( {
@@ -220,4 +222,4 @@ namespace enquote {
     return body;
   }
 
-}}
+}}}
