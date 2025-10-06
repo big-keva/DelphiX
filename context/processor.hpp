@@ -197,14 +197,12 @@ namespace context {
       auto  ptrtop = buforg;
       auto  ptrend = ptrtop + sblock.size();
 
-      while ( ptrtop != ptrend )
+      for ( unsigned uFlags = textAPI::TextToken::is_first; ptrtop != ptrend; uFlags = 0 )
       {
-        unsigned  uFlags = 0;
-
         // detect lower space
         if ( codepages::IsBlank( *ptrtop ) )
         {
-          uFlags = textAPI::TextToken::lt_space;
+          uFlags |= textAPI::TextToken::lt_space;
 
           for ( ++ptrtop; ptrtop != ptrend && codepages::IsBlank( *ptrtop ); ++ptrtop )
             (void)NULL;
