@@ -9,7 +9,6 @@ namespace queries {
   using IEntities = IContentsIndex::IEntities;
   using Reference = IEntities::Reference;
   using RankerTag = textAPI::RankerTag;
-  using Abstract  = IQuery::Abstract;
   using BM25Term  = Abstract::BM25Term;
 
  /*
