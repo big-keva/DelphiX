@@ -436,7 +436,7 @@ namespace dynamic {
   * all the keys are indexed and runThread is false.
   */
   template <class Allocator>
-  void BlockChains<Allocator>::KeysIndexer()
+  void  BlockChains<Allocator>::KeysIndexer()
   {
     std::mutex  waitex;
     auto        locker = mtc::make_unique_lock( waitex );
