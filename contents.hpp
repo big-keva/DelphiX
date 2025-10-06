@@ -62,7 +62,7 @@ namespace DelphiX
     virtual auto  Entities() -> mtc::api<const mtc::IByteBuffer> = 0;
     virtual auto  Contents() -> mtc::api<const mtc::IByteBuffer> = 0;
     virtual auto  Linkages() -> mtc::api<mtc::IFlatStream> = 0;
-    virtual auto  Packages() -> mtc::api<IStorage::IDumpStore> = 0;
+    virtual auto  Packages() -> mtc::api<IDumpStore> = 0;
 
     virtual auto  Commit() -> mtc::api<ISerialized> = 0;
     virtual void  Remove() = 0;
