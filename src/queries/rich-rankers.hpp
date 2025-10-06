@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_src_queries_rich_rankers_hpp__ )
 # define __DelphiX_src_queries_rich_rankers_hpp__
-# include "../../context/formats.hpp"
+# include "../../context/pack-format.hpp"
 # include "field-set.hpp"
 # include <vector>
 
