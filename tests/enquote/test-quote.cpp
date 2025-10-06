@@ -1,11 +1,11 @@
-#include <queries.hpp>
-
 # include "../../textAPI/DOM-text.hpp"
-# include "../../enquote/compressor.hpp"
+# include "../../context/pack-images.hpp"
+# include "../../context/pack-format.hpp"
 # include "../../context/processor.hpp"
-# include "../../context/formats.hpp"
+# include "../../queries.hpp"
+# include "../../textAPI/DOM-dump.hpp"
+# include "../../enquote/quotations.hpp"
 # include <mtc/test-it-easy.hpp>
-#include <src/service/collect.hpp>
 
 using namespace DelphiX;
 
@@ -20,10 +20,12 @@ auto  GetPackedImage( const textAPI::Document& doc, FieldHandler& fds ) -> std::
   lgProc.WordBreak( txBody, ucText );
   lgProc.SetMarkup( txBody, ucText );
 
-  return { enquote::PackWords( txBody.GetTokens() ), context::formats::Pack( ucText.GetMarkup(), fds ) };
+  return {
+    context::imaging::Pack( txBody.GetTokens() ),
+    context::formats::Pack( txBody.GetMarkup(), fds ) };
 }
 
-auto  GetUnpackImage( const std::pair<std::vector<char>, std::vector<char>>& image, const FieldHandler& fdhan ) -> context::Image
+auto  GetUnpack( const std::pair<std::vector<char>, std::vector<char>>& image, const FieldHandler& fdhan ) -> context::Image
 {
   auto  ximage = context::Image();
   auto  addTag = [&]( const context::formats::FormatTag<unsigned>& tag )
@@ -34,69 +36,205 @@ auto  GetUnpackImage( const std::pair<std::vector<char>, std::vector<char>>& ima
         ximage.GetMarkup().push_back( { pf->name.data(), tag.uLower, tag.uUpper } );
     };
 
-  enquote::UnpackWords( ximage, image.first );
-  context::formats::Unpack( addTag, image.second.data(), image.second.size() );
+  context::imaging::Unpack( ximage, image.first );
+  context::formats::Unpack( addTag, image.second );
 
   return ximage;
 }
 
-using Abstract = DelphiX::queries::IQuery::Abstract;
-using ITextView = palmira::collect::ITextView;
-
-auto  GetQuotes( const context::Image& image, const Abstract& quote, const FieldHandler& fdhan ) -> mtc::api<ITextView>
-{
-  auto  ft = image.GetMarkup().begin();
-  auto  id = 0;
-
-}
-
 class FdMan: public FieldHandler
 {
-  FieldOptions  tag1 = { 1, "tag-1" };
-  FieldOptions  tag2 = { 2, "tag-2" };
+public:
+  FieldOptions  tags[3] = {
+    { 1, "tag-1" },
+    { 2, "tag-2" },
+    { 3, "tag-3" } };
 
 public:
   auto  Add( const StrView& tag ) -> FieldOptions* override
   {
-    return
-      tag == tag1.name ? &tag1 :
-      tag == tag2.name ? &tag2 : nullptr;
+    for ( auto& next: tags )
+      if ( tag == next.name )
+        return &next;
+    return nullptr;
   }
   auto  Get( const StrView& tag ) const -> const FieldOptions* override
   {
-    return
-      tag == tag1.name ? &tag1 :
-      tag == tag2.name ? &tag2 : nullptr;
+    for ( auto& next: tags )
+      if ( tag == next.name )
+        return &next;
+    return nullptr;
   }
   auto  Get( unsigned id ) const -> const FieldOptions* override
   {
-    return
-      id == tag1.id ? &tag1 :
-      id == tag2.id ? &tag2 : nullptr;
+    for ( auto& next: tags )
+      if ( id == next.id )
+        return &next;
+    return nullptr;
   }
 };
+
+auto  UTF8( const std::basic_string_view<widechar>& s ) -> mtc::charstr
+{
+  return codepages::widetombcs( codepages::codepage_utf8, s );
+}
 
 TestItEasy::RegisterFunc  test_quote( []()
 {
   TEST_CASE( "enquote/quote" )
   {
-    FdMan  fdman;
-    auto   compr = GetPackedImage( {
-      "Первая строка текста: просто строка",
-      "Вторая строка в новом абзаце",
+    FdMan fd_man;
+    auto  inText = textAPI::Document();
+
+    textAPI::CopyUtf16( &inText, textAPI::Document{
+      "Первая строка текста: просто строка,",
+      "вторая строка в новом абзаце",
       { "tag-1", {
         "Строка внутри тега",
         { "tag-2", {
           "Строка внутри вложенного тега" } } } },
-      "Третья строка." }, fdman );
+      { "tag-3", { "Текст, что надо всегда цитировать" } },
+      "Третья строка очень длинная и состоит из множества разных слов и букв для проявления многоточий в цитировании" }, codepages::codepage_utf8 );
+    auto  packed = GetPackedImage( inText, fd_man );
+    auto  quoter = DelphiX::enquote::QuoteMachine( fd_man )
+      .SetIndent( { { 2, 4 }, { 2, 4 } } );
+
+    auto  Quoter = [&]( const queries::Abstract& quotes = {} ) -> textAPI::Document
+      {
+        auto  output = textAPI::Document();
+          quoter.Structured()( &output, packed.first, packed.second, quotes );
+        return output;
+      };
+    auto  Source = [&]( const queries::Abstract& quotes = {} ) -> textAPI::Document
+      {
+        auto  output = textAPI::Document();
+          quoter.TextSource()( &output, packed.first, packed.second, quotes );
+        return output;
+      };
 
     SECTION( "image text may be reconstructed" )
     {
+      auto  quoted = Source( {} );
+
+      if ( REQUIRE( quoted.GetBlocks().size() == inText.GetBlocks().size() ) )
+        for ( size_t i = 0; i != inText.GetBlocks().size(); ++i )
+          REQUIRE( quoted.GetBlocks().at( i ).GetWideStr() == inText.GetBlocks().at( i ).GetWideStr() );
+
+      if ( REQUIRE( quoted.GetMarkup().size() == inText.GetMarkup().size() ) )
+        for ( size_t i = 0; i != inText.GetMarkup().size(); i++ )
+          REQUIRE( quoted.GetMarkup().at( i ) == inText.GetMarkup().at( i ) );
+
+      SECTION( "if quotation data is passed, words are marked" )
+      {
+        auto  membuf = mtc::Arena();
+        auto  quotes = queries::MakeAbstract( membuf, {
+          queries::MakeEntrySet( membuf, { { 0, 1 }, { 1, 2 } } ),
+          queries::MakeEntrySet( membuf, { { 2, 13 }, { 3, 14 } } ) } );
+
+        quoted = Quoter( quotes );
+
+        if ( REQUIRE( quoted.GetBlocks().size() == 2 ) )
+        {
+          REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "Первая \x7строка\x8 \x7текста\x8: просто строка," );
+          REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "Строка \x7внутри\x8 \x7тега\x8" );
+        }
+      }
     }
+
     SECTION( "image text may be quoted" )
     {
-      auto  ximage = GetUnpackImage( compr, fdman );
+      auto  membuf = mtc::Arena();
+      auto  quoted = textAPI::Document();
 
+      SECTION( "without markup it is empty document" )
+      {
+        quoted = Quoter( {} );
+
+        REQUIRE( quoted.GetBlocks().empty() );
+      }
+      SECTION( "with always-quoted field it is the set of always-quoteds" )
+      {
+        fd_man.tags[2].options |= FieldOptions::ofEnforceQuote;
+
+        quoted = Quoter( {} );
+
+        if ( REQUIRE( quoted.GetBlocks().size() == 1 ) )
+          REQUIRE( UTF8( quoted.GetBlocks().front().GetWideStr() ) == "Текст, что надо всегда цитировать" );
+        if ( REQUIRE( quoted.GetMarkup().size() == 1 ) )
+          REQUIRE( std::string_view( quoted.GetMarkup().front().format ) == "tag-3" );
+
+        fd_man.tags[2].options &= ~FieldOptions::ofEnforceQuote;
+      }
+
+      SECTION( "with quotation data, it selects fragments" )
+      {
+        auto  quotes = queries::MakeAbstract( membuf, {
+          queries::MakeEntrySet( membuf, { { 0, 1 }, { 1, 2 } } ),
+          queries::MakeEntrySet( membuf, { { 2, 12 }, { 3, 13 } } ) } );
+
+        quoted = Quoter( quotes );
+
+        if ( !REQUIRE( quoted.GetBlocks().size() == 2 )
+          || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "Первая \x7строка\x8 \x7текста\x8: просто строка," )
+          || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "\x7Строка\x8 \x7внутри\x8 тега" ) )
+        {
+          quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+        }
+
+        SECTION( "always-quoted field will present always" )
+        {
+          fd_man.tags[2].options |= FieldOptions::ofEnforceQuote;
+
+          quoted = Quoter( quotes );
+//            .SetLabels( "<span id=%u>", "</span>" )
+
+          if ( !REQUIRE( quoted.GetBlocks().size() == 3 )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "Первая \x7строка\x8 \x7текста\x8: просто строка," )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "\x7Строка\x8 \x7внутри\x8 тега" )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[2].GetWideStr() ) == "Текст, что надо всегда цитировать" ) )
+          {
+            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+          }
+
+          fd_man.tags[2].options &= ~FieldOptions::ofEnforceQuote;
+        }
+
+        SECTION( "long events are quoted partially")
+        {
+          quotes = queries::MakeAbstract( membuf, {
+            queries::MakeEntrySet( membuf, { { 0, 30 }, { 1, 41 } } ) } );
+
+          quoted = Quoter( quotes );
+
+          if ( !REQUIRE( quoted.GetBlocks().size() == 2 )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "… строка очень длинная и \x7состоит\x8 из множества разных слов…" )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "… для проявления многоточий в \x7цитировании\x8" ) )
+          {
+            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+          }
+        }
+        SECTION( "multiple events in one block are supported" )
+        {
+          quotes = queries::MakeAbstract( membuf, {
+            queries::MakeEntrySet( membuf, { { 0, 33 } } ),
+            queries::MakeEntrySet( membuf, { { 1, 39 } } ) } );
+
+          quoted = Quoter( quotes );
+
+          if ( !REQUIRE( quoted.GetBlocks().size() == 1 )
+            || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "… и состоит из множества \x7разных\x8 слов и букв для проявления \x7многоточий\x8 в цитировании" ) )
+          {
+            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+          }
+        }
+      }
+
+      SECTION( "with non-quote abstract it creates start document snapshot" )
+      {
+        quoted = Quoter( {} );
+
+        quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+      }
     }
   }
 

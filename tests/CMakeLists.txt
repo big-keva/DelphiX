@@ -6,7 +6,6 @@ endif()
 link_libraries(DelphiX mtc moonycode)
 
 add_executable(test-DelphiX-enquote
-	enquote/test-compressor.cpp
 	enquote/test-quote.cpp
 	test-main.cpp)
 

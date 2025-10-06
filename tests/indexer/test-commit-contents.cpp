@@ -41,6 +41,7 @@ class MockSeralized: public IStorage::ISerialized
   auto  Entities() -> mtc::api<const mtc::IByteBuffer> override {  return &buffer;  }
   auto  Contents() -> mtc::api<const mtc::IByteBuffer> override {  return &buffer;  }
   auto  Linkages() -> mtc::api<mtc::IFlatStream> override {  return nullptr;  }
+  auto  Packages() -> mtc::api<IStorage::IDumpStore> override {  return nullptr;  }
 
   auto  Commit() -> mtc::api<ISerialized> override  {  return this;  }
   void  Remove() override {}
@@ -56,6 +57,7 @@ class MockEntity: public IEntity
   auto  GetId() const -> EntityId override {  return { "dynamicId" };  }
   auto  GetIndex() const -> uint32_t override {  return 3;  }
   auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override  {  return {};  }
+  auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override  {  return {};  }
   auto  GetVersion() const -> uint64_t override {  return 0; }
 };
 
@@ -79,7 +81,7 @@ public:
     {  return ix == 3 ? &entity : nullptr;  }
   bool  DelEntity( EntityId )
     {  throw std::logic_error( "invalid call" );  }
-  auto  SetEntity( EntityId, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetEntity( EntityId, mtc::api<const IContents>, const StrView&, const StrView& ) -> mtc::api<const IEntity> override
     {  throw std::logic_error( "invalid call" );  }
   auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override
     {  throw std::logic_error( "invalid call" );  }

@@ -46,6 +46,7 @@ class MockDynamic final: public IContentsIndex
     auto  GetId() const -> EntityId override {  return { id };  }
     auto  GetIndex() const -> uint32_t override {  return index;  }
     auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override  {  return nullptr;  }
+    auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override  {  return nullptr;  }
     auto  GetVersion() const -> uint64_t override  {  return 0;  }
 
   public:
@@ -60,7 +61,7 @@ public:
     {  return new MockEntity( mtc::strprintf( "%u", ix ), ix );  }
   bool  DelEntity( EntityId ) override
     {  return false;  }
-  auto  SetEntity( EntityId id, mtc::api<const IContents>, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetEntity( EntityId id, mtc::api<const IContents>, const StrView&, const StrView& ) -> mtc::api<const IEntity> override
     {  return new MockEntity( std::string( id ), 1 );  }
   auto  SetExtras( EntityId id, const StrView& ) -> mtc::api<const IEntity> override
     {  return new MockEntity( std::string( id ), 1 );  }
