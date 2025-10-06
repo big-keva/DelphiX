@@ -42,9 +42,10 @@ add_library(DelphiX
 	src/context/x-contents.cpp
 	src/context/fields-man.cpp
 	src/context/processor.cpp
-	src/context/formats.cpp
+	src/context/pack-format.cpp
+	src/context/pack-images.cpp
 
-	src/enquote/compressor.cpp
+	src/enquote/quotations.cpp
 
 	src/indexer/commit-contents.cpp
 	src/indexer/contents-index-merger.cpp
@@ -57,6 +58,7 @@ add_library(DelphiX
 	src/indexer/strmatch.cpp
 
 	src/queries/parser.cpp
+	src/queries/queries.cpp
 	src/queries/query-terms.cpp
 	src/queries/query-tools.cpp
 	src/queries/base-queries.cpp
