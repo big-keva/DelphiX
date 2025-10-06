@@ -9,6 +9,9 @@
 namespace DelphiX {
 namespace queries {
 
+  using EntryPos = Abstract::EntryPos;
+  using EntrySet = Abstract::EntrySet;
+
   using IEntities = IContentsIndex::IEntities;
   using Reference = IEntities::Reference;
   using RankerTag = textAPI::RankerTag;
@@ -372,17 +375,17 @@ namespace queries {
           if ( selected[i].size() != 0 )
           {
             if ( select == nullptr
-              || select->beg->limits.uMin < selected[i].beg->limits.uMin
-              || (select->beg->limits.uMin == selected[i].beg->limits.uMin && select->beg->weight > selected[i].beg->weight) )
+              || select->pbeg->limits.uMin < selected[i].pbeg->limits.uMin
+              || (select->pbeg->limits.uMin == selected[i].pbeg->limits.uMin && select->pbeg->weight > selected[i].pbeg->weight) )
             select = &selected[i];
           }
 
-        if ( select != nullptr )  *outptr = *select->beg++;
+        if ( select != nullptr )  *outptr = *select->pbeg++;
           else break;
 
         for ( size_t i = 0; i != nfound; ++i )
-          if ( selected[i].beg->limits.uMin == outptr->limits.uMin )
-            ++selected[i].beg;
+          if ( selected[i].pbeg->limits.uMin == outptr->limits.uMin )
+            ++selected[i].pbeg;
       }
       return abstract = { Abstract::Rich, 0, { entryBuf, outptr } };
     }
@@ -465,18 +468,18 @@ namespace queries {
       // find element to be the lowest in the list of entries
         for ( auto& next: querySet )
         {
-          auto  curpos = (next.abstract.entries.beg->limits.uMax +
-            next.abstract.entries.beg->limits.uMin) / 2.0;
+          auto  curpos = (next.abstract.entries.pbeg->limits.uMax +
+            next.abstract.entries.pbeg->limits.uMin) / 2.0;
 
           weight *= (1.0 -
-            next.abstract.entries.beg->weight);
+            next.abstract.entries.pbeg->weight);
           center += curpos *
-            next.abstract.entries.beg->center;
+            next.abstract.entries.pbeg->center;
           sumpos += curpos;
           limits.uMin = std::min( limits.uMin,
-            next.abstract.entries.beg->limits.uMin );
+            next.abstract.entries.pbeg->limits.uMin );
           limits.uMax = std::max( limits.uMax,
-            next.abstract.entries.beg->limits.uMax );
+            next.abstract.entries.pbeg->limits.uMax );
         }
 
       // finish weight calc
@@ -490,12 +493,12 @@ namespace queries {
         for ( auto& next: querySet )
         {
         // copy relevant entries until possible overflow
-          if ( (outPos = SetPoints( outPos, std::end(pointBuf), *next.abstract.entries.beg )) == std::end(pointBuf) )
+          if ( (outPos = SetPoints( outPos, std::end(pointBuf), *next.abstract.entries.pbeg )) == std::end(pointBuf) )
             return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
 
         // skip lower elements
-          if ( next.abstract.entries.beg->limits.uMin == limits.uMin )
-            hasAny &= ++next.abstract.entries.beg != next.abstract.entries.end;
+          if ( next.abstract.entries.pbeg->limits.uMin == limits.uMin )
+            hasAny &= ++next.abstract.entries.pbeg != next.abstract.entries.pend;
         }
 
         *outEnt++ = { limits, weight, center, { outOrg, outPos } };
@@ -538,8 +541,8 @@ namespace queries {
           auto  cpos = unsigned{};
 
         // search first entry in next list at desired position or upper
-          while ( rent.beg < rent.end && (cpos = rent.beg->limits.uMin) < begpos )
-            ++rent.beg;
+          while ( rent.pbeg < rent.pend && (cpos = rent.pbeg->limits.uMin) < begpos )
+            ++rent.pbeg;
 
         // check if found
           if ( rent.empty() )
@@ -552,16 +555,16 @@ namespace queries {
         // get next position
           if ( nindex++ == 0 )
           {
-            weight = 1.0 - (ctsumm = rent.beg->weight);
-            center = (uLower = cpos) * rent.beg->weight;
+            weight = 1.0 - (ctsumm = rent.pbeg->weight);
+            center = (uLower = cpos) * rent.pbeg->weight;
             begpos = cpos - next.keyOrder;
           }
             else
           if ( cpos == begpos + next.keyOrder)
           {
-            weight *= 1.0 - rent.beg->weight;
-            center += cpos * rent.beg->weight;
-            ctsumm += rent.beg->weight;
+            weight *= 1.0 - rent.pbeg->weight;
+            center += cpos * rent.pbeg->weight;
+            ctsumm += rent.pbeg->weight;
           }
             else
           {
@@ -574,8 +577,8 @@ namespace queries {
         // register key entries
         for ( auto& next: querySet )
         {
-          *outPos++ = *next.abstract.entries.beg->spread.pbeg;
-            ++next.abstract.entries.beg;
+          *outPos++ = *next.abstract.entries.pbeg->spread.pbeg;
+            ++next.abstract.entries.pbeg;
           if ( outPos == std::end(pointBuf) )
             return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
         }
@@ -661,12 +664,12 @@ namespace queries {
         // check if has the entries; use entries weight in possible quorum
           if ( rentry.size() != 0 )
           {
-            despos = uLower == unsigned(-1) ? rentry.beg->center : despos + rquery.keyOrder;
-            uLower = std::min( uLower, rentry.beg->limits.uMin );
-            uUpper = std::max( uUpper, rentry.beg->limits.uMax );
-            scalar += rentry.beg->weight * DistRange( rentry.beg->center - despos );
-            center += rentry.beg->weight * rentry.beg->center;
-            ctsumm += rentry.beg->weight;
+            despos = uLower == unsigned(-1) ? rentry.pbeg->center : despos + rquery.keyOrder;
+            uLower = std::min( uLower, rentry.pbeg->limits.uMin );
+            uUpper = std::max( uUpper, rentry.pbeg->limits.uMax );
+            scalar += rentry.pbeg->weight * DistRange( rentry.pbeg->center - despos );
+            center += rentry.pbeg->weight * rentry.pbeg->center;
+            ctsumm += rentry.pbeg->weight;
             length += rquery.keyRange;
           }
         }
@@ -690,10 +693,10 @@ namespace queries {
             if ( rentry.size() != 0 )
             {
               if ( useEnt )
-                outPos = SetPoints( outPos, std::end(pointBuf), *rentry.beg );
+                outPos = SetPoints( outPos, std::end(pointBuf), *rentry.pbeg );
 
-              if ( rquery.abstract.entries.beg->limits.uMin == uLower )
-                ++rquery.abstract.entries.beg;
+              if ( rquery.abstract.entries.pbeg->limits.uMin == uLower )
+                ++rquery.abstract.entries.pbeg;
             }
           }
 
@@ -758,10 +761,10 @@ namespace queries {
           // select lower element
             if ( plower != nullptr )
             {
-              int  rcmp = (next.beg->limits.uMin > plower->entries.beg->limits.uMin)
-                        - (next.beg->limits.uMin < plower->entries.beg->limits.uMin);
+              int  rcmp = (next.pbeg->limits.uMin > plower->entries.pbeg->limits.uMin)
+                        - (next.pbeg->limits.uMin < plower->entries.pbeg->limits.uMin);
 
-              if ( rcmp < 0 || (rcmp == 0 && next.beg->weight > plower->entries.beg->weight) )
+              if ( rcmp < 0 || (rcmp == 0 && next.pbeg->weight > plower->entries.pbeg->weight) )
                 plower = selected[i];
             } else plower = selected[i];
           }
@@ -771,12 +774,12 @@ namespace queries {
           return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
 
       // create output entry
-        ulower = (*outEnt++ = *plower->entries.beg++).limits.uMin;
+        ulower = (*outEnt++ = *plower->entries.pbeg++).limits.uMin;
 
       // skip equal entries
         for ( size_t i = 0; i != nFound; ++i )
-          if ( selected[i]->entries.size() != 0 && selected[i]->entries.beg->limits.uMin == ulower )
-            ++selected[i]->entries.beg;
+          if ( selected[i]->entries.size() != 0 && selected[i]->entries.pbeg->limits.uMin == ulower )
+            ++selected[i]->entries.pbeg;
       }
       abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
     }
@@ -812,19 +815,19 @@ namespace queries {
       auto  tagEnd = ft.data() + ft.size();
       auto  outPtr = entryBuf;
 
-      for ( ; subEnt.entries.beg != subEnt.entries.end && tagBeg != tagEnd; ++subEnt.entries.beg )
+      for ( ; subEnt.entries.pbeg != subEnt.entries.pend && tagBeg != tagEnd; ++subEnt.entries.pbeg )
       {
-        while ( tagBeg != tagEnd && tagBeg->uUpper < subEnt.entries.beg->limits.uMax && !mtc::bitset_get( matchSet, tagBeg->format ) )
+        while ( tagBeg != tagEnd && tagBeg->uUpper < subEnt.entries.pbeg->limits.uMax && !mtc::bitset_get( matchSet, tagBeg->format ) )
           ++tagBeg;
         if ( tagBeg == tagEnd )
           break;
-        while ( subEnt.entries.beg != subEnt.entries.end && subEnt.entries.beg->limits.uMin < tagBeg->uLower )
-          ++subEnt.entries.beg;
-        if ( subEnt.entries.beg == subEnt.entries.end )
+        while ( subEnt.entries.pbeg != subEnt.entries.pend && subEnt.entries.pbeg->limits.uMin < tagBeg->uLower )
+          ++subEnt.entries.pbeg;
+        if ( subEnt.entries.pbeg == subEnt.entries.pend )
           break;
-        if ( tagBeg->uLower <= subEnt.entries.beg->limits.uMin
-          && tagBeg->uUpper >= subEnt.entries.beg->limits.uMax )
-            *outPtr++ = *subEnt.entries.beg;
+        if ( tagBeg->uLower <= subEnt.entries.pbeg->limits.uMin
+          && tagBeg->uUpper >= subEnt.entries.pbeg->limits.uMax )
+            *outPtr++ = *subEnt.entries.pbeg;
       }
 
       if ( outPtr != entryBuf )
@@ -844,19 +847,19 @@ namespace queries {
       auto  tagEnd = ft.data() + ft.size();
       auto  outPtr = entryBuf;
 
-      for ( ; subEnt.entries.beg != subEnt.entries.end && tagBeg != tagEnd; ++subEnt.entries.beg )
+      for ( ; subEnt.entries.pbeg != subEnt.entries.pend && tagBeg != tagEnd; ++subEnt.entries.pbeg )
       {
-        while ( tagBeg != tagEnd && tagBeg->uLower < subEnt.entries.beg->limits.uMin && !mtc::bitset_get( matchSet, tagBeg->format ) )
+        while ( tagBeg != tagEnd && tagBeg->uLower < subEnt.entries.pbeg->limits.uMin && !mtc::bitset_get( matchSet, tagBeg->format ) )
           ++tagBeg;
         if ( tagBeg == tagEnd )
           break;
-        while ( subEnt.entries.beg != subEnt.entries.end && subEnt.entries.beg->limits.uMin < tagBeg->uLower )
-          ++subEnt.entries.beg;
-        if ( subEnt.entries.beg == subEnt.entries.end )
+        while ( subEnt.entries.pbeg != subEnt.entries.pend && subEnt.entries.pbeg->limits.uMin < tagBeg->uLower )
+          ++subEnt.entries.pbeg;
+        if ( subEnt.entries.pbeg == subEnt.entries.pend )
           break;
-        if ( tagBeg->uLower == subEnt.entries.beg->limits.uMin
-          && tagBeg->uUpper == subEnt.entries.beg->limits.uMax )
-            *outPtr++ = *subEnt.entries.beg;
+        if ( tagBeg->uLower == subEnt.entries.pbeg->limits.uMin
+          && tagBeg->uUpper == subEnt.entries.pbeg->limits.uMax )
+            *outPtr++ = *subEnt.entries.pbeg;
       }
 
       if ( outPtr != entryBuf )
