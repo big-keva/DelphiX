@@ -1,30 +1,14 @@
 # if !defined( __DelphiX_queries_hpp__ )
 # define __DelphiX_queries_hpp__
 # include <mtc/interfaces.h>
-# include "slices.hpp"
+# include <initializer_list>
+# include <mtc/arena.hpp>
+# include <memory>
 
 namespace DelphiX {
 namespace queries {
 
-  /*
-  * IQuery
-  *
-  * Представление вычислителя поисковых запросов.
-  *
-  * Находит идентификаторы документов и возвращает структуры данных, годные для ранжирования.
-  *
-  * Временем жизни этих структур управляет вычислитель запросов, так что после перехода
-  * к следующему документу данные структуры окажутся некорректными.
-  */
-  struct IQuery: mtc::Iface
-  {
-    struct  Abstract;
-
-    virtual uint32_t  SearchDoc( uint32_t ) = 0;
-    virtual Abstract  GetTuples( uint32_t ) = 0;
-  };
-
-  struct IQuery::Abstract
+  struct Abstract
   {
     struct BM25Term
     {
@@ -34,14 +18,14 @@ namespace queries {
       unsigned  occurs;      // term occurences
     };
 
+    struct EntryPos
+    {
+      unsigned  termID;
+      unsigned  offset;
+    };
+
     struct EntrySet
     {
-      struct EntryPos
-      {
-        unsigned  termID;
-        unsigned  offset;
-      };
-
       using Limits = struct
       {
         unsigned uMin;
@@ -52,6 +36,8 @@ namespace queries {
         const EntryPos* pbeg;
         const EntryPos* pend;
 
+        auto    begin() const -> const EntryPos*  {  return pbeg;  }
+        auto    end() const -> const EntryPos*  {  return pend;  }
         bool    empty() const {  return pbeg == pend;  }
         size_t  size() const {  return pend - pbeg;  }
       };
@@ -64,11 +50,13 @@ namespace queries {
 
     struct Entries
     {
-      const EntrySet*  beg = nullptr;
-      const EntrySet*  end = nullptr;
+      const EntrySet*  pbeg = nullptr;
+      const EntrySet*  pend = nullptr;
 
-      bool    empty() const {  return beg == end;  }
-      size_t  size() const  {  return end - beg;  }
+      auto    begin() const -> const EntrySet*  {  return pbeg;  }
+      auto    end() const -> const EntrySet*  {  return pend;  }
+      bool    empty() const {  return pbeg == pend;  }
+      size_t  size() const  {  return pend - pbeg;  }
     };
 
     struct Factors
@@ -95,6 +83,28 @@ namespace queries {
       Factors factors;
     };
   };
+
+  /*
+  * IQuery
+  *
+  * Представление вычислителя поисковых запросов.
+  *
+  * Находит идентификаторы документов и возвращает структуры данных, годные для ранжирования.
+  *
+  * Временем жизни этих структур управляет вычислитель запросов, так что после перехода
+  * к следующему документу данные структуры окажутся некорректными.
+  */
+  struct IQuery: mtc::Iface
+  {
+    virtual uint32_t  SearchDoc( uint32_t ) = 0;
+    virtual Abstract  GetTuples( uint32_t ) = 0;
+  };
+
+  auto  GetQuotation( const Abstract& ) -> Abstract::Entries;
+
+  auto  MakeAbstract( mtc::Arena&, const std::initializer_list<Abstract::EntrySet>& ) -> Abstract;
+  auto  MakeEntrySet( mtc::Arena&, const std::initializer_list<Abstract::EntryPos>&, double = 0.1 ) -> Abstract::EntrySet;
+  auto  MakeEntrySet( mtc::Arena&, const std::initializer_list<unsigned>&, double = 0.1 ) -> Abstract::EntrySet;
 
 }}
 
