@@ -166,7 +166,7 @@ namespace context {
   * stores words with context flags, pointer, offset and length to output array
   */
   template <class Allocator>
-  auto Processor::WordBreak( BaseImage<Allocator>& body, const textAPI::ITextView& input,
+  auto  Processor::WordBreak( BaseImage<Allocator>& body, const textAPI::ITextView& input,
     const FieldHandler* fdset ) const -> BaseImage<Allocator>&
   {
     std::vector<uint64_t>  nonBrk;
