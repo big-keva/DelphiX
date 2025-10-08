@@ -60,10 +60,10 @@ namespace imaging {
         auto  ccDiff = ::GetBufLen( asDiff );
 
       // get min backref
-        if ( ccDiff < ccOffs )  o = ::Serialize( o, asDiff );
-          else o = ::Serialize( o, asOffs );
+        if ( ccOffs < ccDiff )
+          return ::Serialize( o, asOffs );
 
-        return *puprev = p, o;
+        return *puprev = p, ::Serialize( o, asDiff );
       }
 
       if ( Is1251( t ) )
@@ -100,7 +100,7 @@ namespace imaging {
     static  auto  As1251( const textAPI::TextToken& t ) -> unsigned
       {  return t.uFlags + ((t.length - 1) << 5);  }
     static  auto  AsUtf8( const textAPI::TextToken& t ) -> unsigned
-      {  return t.uFlags + ((t.length - 1) << 5) + of_utf8str ;  }
+      {  return t.uFlags + ((codepages::utf8::cbchar( t.pwsstr, t.length ) - 1) << 5) + of_utf8str;  }
     static  auto  AsDiff( const textAPI::TextToken& t, unsigned diff ) -> unsigned
       {  return t.uFlags + ((diff - 1) << 5) + of_diffref ;  }
     static  auto  AsOffs( const textAPI::TextToken& t, unsigned next ) -> unsigned
@@ -158,10 +158,10 @@ namespace imaging {
       switch ( opt & WordsEncoder::of_bitmask )
       {
         case WordsEncoder::of_backref:
-          addref( opt & 0x3, 1 + (opt >> 5) );
+          addref( opt & 0x7, 1 + (opt >> 5) );
           break;
         case WordsEncoder::of_diffref:
-          addref( opt & 0x3, pos - (1 + (opt >> 5)) );
+          addref( opt & 0x7, pos - (1 + (opt >> 5)) );
           break;
         case WordsEncoder::of_utf8str:
         {
