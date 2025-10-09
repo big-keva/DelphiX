@@ -172,7 +172,7 @@ namespace dynamic {
     mutable std::shared_mutex                 radixLock;    // locker to access
 
     RingBuffer<ChainHook*, ring_buffer_size>  keysQueue;    // queue for keys indexing
-    std::condition_variable                   keySyncro;    // syncro for shadow indexing keys
+    std::condition_variable_any               keySyncro;    // syncro for shadow indexing keys
     std::thread                               keyThread;    // shadow keys indexer
     volatile bool                             runThread = false;
 
@@ -316,11 +316,14 @@ namespace dynamic {
   {
     auto  templStr = std::string( key.begin(), key.end() );
     auto  templLen = size_t(0);
+    auto  treeLock = mtc::make_shared_lock( radixLock, std::defer_lock );
     auto  radixBeg = radixTree.cend( std::allocator<char>() );
     auto  radixEnd = radixTree.cend( std::allocator<char>() );
 
     for ( ; templLen < templStr.size() && templStr[templLen] != '*' && templStr[templLen] != '?'; ++templLen )
       (void)NULL;
+
+    treeLock.lock();
 
     if ( templLen != 0 )  radixBeg = radixTree.lower_bound( { templStr.data(), templLen }, std::allocator<char>() );
       else radixBeg = radixTree.cbegin( std::allocator<char>() );
@@ -438,17 +441,14 @@ namespace dynamic {
   template <class Allocator>
   void  BlockChains<Allocator>::KeysIndexer()
   {
-    std::mutex  waitex;
-    auto        locker = mtc::make_unique_lock( waitex );
+    auto        locker = mtc::make_unique_lock( radixLock );
     ChainHook*  addkey;
 
     pthread_setname_np( pthread_self(), "KeysIndexer" );
 
     for ( runThread = true; runThread; )
     {
-      auto  modify = mtc::make_unique_lock( radixLock, std::defer_lock );
-
-      for ( keySyncro.wait( locker ), modify.lock(); keysQueue.Get( addkey ); )
+      for ( keySyncro.wait( locker ); keysQueue.Get( addkey ); )
         radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
     }
     while ( keysQueue.Get( addkey ) )
