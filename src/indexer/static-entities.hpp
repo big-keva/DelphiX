@@ -47,8 +47,9 @@ namespace static_ {
       using string = std::basic_string<char, std::char_traits<char>, Allocator>;
 
     public:
-      Entity( mtc::Iface* owner ):
-        owner_ptr( owner )  {}
+      Entity( mtc::Iface* owner, IStorage::IDumpStore* dumps ):
+        owner_ptr( owner ),
+        dumpStore( dumps ){}
 
     public:
       long  Attach() override
@@ -64,7 +65,7 @@ namespace static_ {
       auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override
         {  return new Region( extras.data(), extras.size(), owner_ptr );  }
       auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override
-        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+        {  return packPos != -1 && dumpStore != nullptr ? dumpStore->Get( packPos ) : nullptr;  }
       auto  GetVersion() const -> uint64_t override
         {  return version;  }
 
@@ -76,14 +77,15 @@ namespace static_ {
       auto  FetchFrom( const char* ) -> const char*;
 
     public:
-      mtc::Iface*       owner_ptr = nullptr;
-      Entity*           collision = nullptr;
+      Iface*                owner_ptr = nullptr;
+      Entity*               collision = nullptr;
+      IStorage::IDumpStore* dumpStore = nullptr;
 
-      StrView           entity_id;
-      StrView           extras;
-      uint32_t          index = 0;            // order of creation, default 0
-      int64_t           packPos = -1;
-      uint64_t          version = 0;
+      StrView               entity_id;
+      StrView               extras;
+      uint32_t              index = 0;            // order of creation, default 0
+      int64_t               packPos = -1;
+      uint64_t              version = 0;
 
     };
 
@@ -94,7 +96,7 @@ namespace static_ {
     using hash_vector = std::vector<Entity*, Allocator>;
 
   public:
-    EntityTable( const StrView&, mtc::Iface* = nullptr, Allocator = Allocator() );
+    EntityTable( const StrView&, mtc::Iface*, IStorage::IDumpStore*, Allocator = Allocator() );
    ~EntityTable();
 
     auto  GetEntityCount() const -> uint32_t {  return std::max( 1U, uint32_t( entityTable.size() ) ) - 1;  };
@@ -178,7 +180,7 @@ namespace static_ {
   // EntityTable implementation
 
   template <class Allocator>
-  EntityTable<Allocator>::EntityTable( const StrView& input, mtc::Iface* owner, Allocator alloc ):
+  EntityTable<Allocator>::EntityTable( const StrView& input, mtc::Iface* owner, IStorage::IDumpStore* dumps, Allocator alloc ):
     contentsPtr( owner ),
     entityTable( alloc ),
     entitiesMap( alloc )
@@ -188,7 +190,7 @@ namespace static_ {
   // load the table
     for ( auto src = input.data(), end = input.data() + input.size(); src != nullptr && src != end; )
     {
-      entityTable.emplace_back( contentsPtr );
+      entityTable.emplace_back( owner, dumps );
       src = entityTable.back().FetchFrom( src );
     }
 
