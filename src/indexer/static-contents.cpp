@@ -161,7 +161,7 @@ namespace static_ {
     xStorage( storage ),
     tableBuf( storage->Entities() ),
     radixBuf( storage->Contents() ),
-    entities( tableBuf, this, memArena.get_allocator<char>() ),
+    entities( tableBuf, this, storage->Packages(), memArena.get_allocator<char>() ),
     contents( radixBuf->GetPtr() ),
     blockBox( storage->Linkages() ),
     patchTab( std::max( 1000U, entities.GetEntityCount() ), memArena.get_allocator<char>() ),
@@ -430,7 +430,7 @@ namespace static_ {
   {
     auto  ktop = templStr.data();
     auto  kend = templStr.data() + templStr.size();
-    int   rcmp;
+    int   rcmp = 0;
 
     while ( ktop != kend && *ktop != '?' && *ktop != '*' )
       ++ktop;
@@ -438,8 +438,10 @@ namespace static_ {
     iterator = pc->contents.lower_bound( { templStr.data(), ktop } );
 
     if ( templStr.size() != 0 )
-      while ( iterator != pc->contents.end() && (rcmp = strmatch( templStr, iterator->key )) < 0 )
+    {
+      while ( iterator != pc->contents.end() && (rcmp = strmatch( templStr, iterator->key )) > 0 )
         ++iterator;
+    } else rcmp = 0;
 
     if ( rcmp > 0 )
       iterator = pc->contents.end();

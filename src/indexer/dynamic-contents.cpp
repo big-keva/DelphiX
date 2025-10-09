@@ -155,7 +155,7 @@ namespace dynamic {
   ContentsIndex::ContentsIndex( uint32_t maxEntities, uint32_t maxAllocate, mtc::api<IStorage::IIndexStore> storageSink  ):
     memLimit( maxAllocate ),
     pStorage( storageSink ),
-    entities( maxEntities, this, memArena.get_allocator<char>() ),
+    entities( maxEntities, this, pStorage != nullptr ? pStorage->Packages() : nullptr, memArena.get_allocator<char>() ),
     contents( memArena.get_allocator<char>() ),
     shadowed( maxEntities, memArena.get_allocator<char>() )
   {
