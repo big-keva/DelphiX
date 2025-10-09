@@ -29,7 +29,7 @@ namespace queries {
     virtual Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) = 0;
 
   protected:
-    auto  SetPoints( EntryPos*, EntryPos*, const EntrySet& ) const -> EntryPos*;
+    auto  SetPoints( EntryPos*, const EntryPos*, const EntrySet& ) const -> EntryPos*;
 
     mtc::api<IEntities>   fmtBlock;                           // formats and lengths
     IEntities::Reference  fmtRefer = { 0, { nullptr, 0 } };   // current formats position
@@ -78,9 +78,6 @@ namespace queries {
       const unsigned      datatype;
       TermRanker          tmRanker;
       Reference           docRefer = { 0, { nullptr, 0 } };   // entity reference set
-      unsigned            nEntries = 0;       // number of entries
-      EntrySet            entryBuf[0x10000];
-      EntryPos            pointBuf[0x10000];
 
     // construction
       KeyBlock( const mtc::api<IEntities>& bk, TermRanker&& tr ):
@@ -89,12 +86,12 @@ namespace queries {
         tmRanker( std::move( tr ) )  {}
 
     // methods
-      auto  Unpack( const Slice<const RankerTag>& fmt, unsigned id ) -> KeyBlock&
+      auto  Unpack( EntrySet* tuples, EntryPos* points, unsigned maxlen,
+        const Slice<const RankerTag>& format, unsigned id ) -> unsigned
       {
-        nEntries = datatype == 10 ?
-          UnpackEntries<ZeroForm>( entryBuf, pointBuf, docRefer.details, tmRanker.GetRanker( fmt ), id ) :
-          UnpackEntries<LoadForm>( entryBuf, pointBuf, docRefer.details, tmRanker.GetRanker( fmt ), id );
-        return *this;
+        return datatype == 10 ?
+          UnpackEntries<ZeroForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id ) :
+          UnpackEntries<LoadForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id );
       }
     };
 
@@ -110,7 +107,9 @@ namespace queries {
   protected:
     std::vector<KeyBlock>           blockSet;
     std::vector<Abstract::Entries>  selected;
-    EntrySet                        entryBuf[0x10000];
+    std::vector<EntrySet>           entryBuf;
+    std::vector<EntrySet>           entryOut;
+    std::vector<EntryPos>           pointBuf;
 
   };
 
@@ -118,7 +117,11 @@ namespace queries {
   {
   public:
     RichQueryArgs( mtc::api<IEntities> fmt ):
-      RichQueryBase( fmt ) {}
+      RichQueryBase( fmt ),
+      entryBuf( 0x10000 ),
+      pointBuf( 0x10000 ),
+      entryEnd( entryBuf.data() + entryBuf.size() ),
+      pointEnd( pointBuf.data() + pointBuf.size() ) {}
 
     void   AddQueryNode( mtc::api<RichQueryBase>, double );
     auto   StrictSearch( uint32_t ) -> uint32_t;
@@ -149,8 +152,10 @@ namespace queries {
 
   protected:
     std::vector<SubQuery> querySet;
-    EntrySet              entryBuf[0x10000];
-    EntryPos              pointBuf[0x10000];
+    std::vector<EntrySet> entryBuf;
+    std::vector<EntryPos> pointBuf;
+    const EntrySet*       entryEnd;
+    const EntryPos*       pointEnd;
 
   };
 
@@ -264,6 +269,12 @@ namespace queries {
       uint32_t  nWords;
       size_t    uCount = context::formats::Unpack( format,
         ::FetchFrom( fmtRefer.details.data(), nWords ), fmtRefer.details.size() );
+
+      if ( tofind == 3654 )
+      {
+        int i = 0;
+      }
+
       auto&     report = GetChunks( tofind, { format, uCount } );
 
       return report.nWords = nWords, report;
@@ -272,7 +283,7 @@ namespace queries {
   }
 
   inline
-  auto  RichQueryBase::SetPoints( EntryPos* out, EntryPos* lim, const EntrySet& ent ) const -> EntryPos*
+  auto  RichQueryBase::SetPoints( EntryPos* out, const EntryPos* lim, const EntrySet& ent ) const -> EntryPos*
   {
     for ( auto beg = ent.spread.pbeg; out != lim && beg != ent.spread.pend; )
       *out++ = *beg++;
@@ -316,14 +327,14 @@ namespace queries {
   // RichMultiTerm implementation
 
   RichMultiTerm::RichMultiTerm( mtc::api<IEntities> fmt, std::vector<std::pair<mtc::api<IEntities>, TermRanker>>& terms ):
-    RichQueryBase( fmt )
+    RichQueryBase( fmt ),
+    entryBuf( 0x10000 ),
+    entryOut( 0x10000 ),
+    pointBuf( 0x10000 )
   {
-    if ( terms.size() > 1000 )
-    {
-      int i = 0;
-    }
     for ( auto& create: terms )
       blockSet.emplace_back( create.first, std::move( create.second ) );
+
     selected.resize( blockSet.size() );
   }
 
@@ -351,13 +362,25 @@ namespace queries {
   {
     if ( abstract.entries.empty() )
     {
-      size_t    nfound = 0;
-      auto      outptr = entryBuf;
+      size_t  nfound = 0;
+      size_t  nstart = 0;
+      auto    entPtr = entryBuf.data();
+      auto    posPtr = pointBuf.data();
+      auto    outPtr = entryOut.data();
 
     // request elements in found blocks
       for ( size_t i = 0; i != blockSet.size(); ++i )
-        if ( blockSet[i].docRefer.uEntity == getdoc && blockSet[i].Unpack( fmt, 0 ).nEntries != 0 )
-          selected[nfound++] = { blockSet[i].entryBuf, blockSet[i].entryBuf + blockSet[i].nEntries };
+        if ( blockSet[i].docRefer.uEntity == getdoc )
+        {
+          auto  ucount = blockSet[i].Unpack( entPtr, posPtr, entryBuf.data() + entryBuf.size() - entPtr, fmt, 0 );
+
+          if ( ucount != 0 )
+          {
+            selected[nfound++] = { entPtr, entPtr + ucount };
+              entPtr += ucount;
+              posPtr += ucount;
+          }
+        }
 
     // check if single or multiple blocks
       if ( nfound == 0 )
@@ -367,27 +390,19 @@ namespace queries {
         return abstract = { Abstract::Rich, 0, selected.front() };
 
     // merge found tuples
-      for ( auto outend = outptr + std::size(entryBuf); outptr != outend; ++outptr )
-      {
-        auto  select = (Abstract::Entries*)nullptr;
+      for ( auto outend = entryOut.data() + entryOut.size(); outPtr != outend && nstart < nfound; ++outPtr )
+        if ( selected[nstart].pbeg < selected[nstart].pend )
+        {
+          auto  uLower = (*outPtr = *selected[nstart].pbeg).limits.uMin;
 
-        for ( size_t i = 0; i != nfound; ++i )
-          if ( selected[i].size() != 0 )
-          {
-            if ( select == nullptr
-              || select->pbeg->limits.uMin < selected[i].pbeg->limits.uMin
-              || (select->pbeg->limits.uMin == selected[i].pbeg->limits.uMin && select->pbeg->weight > selected[i].pbeg->weight) )
-            select = &selected[i];
-          }
+          if ( ++selected[nstart].pbeg == selected[nstart].pend )
+            ++nstart;
 
-        if ( select != nullptr )  *outptr = *select->pbeg++;
-          else break;
-
-        for ( size_t i = 0; i != nfound; ++i )
-          if ( selected[i].pbeg->limits.uMin == outptr->limits.uMin )
-            ++selected[i].pbeg;
-      }
-      return abstract = { Abstract::Rich, 0, { entryBuf, outptr } };
+          for ( auto norder = nstart + 1; norder < nfound; ++norder )
+            if ( uLower == selected[norder].pbeg->limits.uMin )
+              ++selected[norder].pbeg;
+        }
+      return abstract = { Abstract::Rich, 0, { entryOut.data(), outPtr } };
     }
     return getdoc == entityId ? abstract : abstract = {};
   }
@@ -447,8 +462,8 @@ namespace queries {
   {
     if ( abstract.dwMode != abstract.Rich )
     {
-      auto  outEnt = std::begin(entryBuf);
-      auto  outPos = std::begin(pointBuf);
+      auto  outEnt = entryBuf.data();
+      auto  outPos = pointBuf.data();
 
     // request all the queries in '&' operator; not found queries force to return {}
       for ( auto& next: querySet )
@@ -457,7 +472,7 @@ namespace queries {
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
-      for ( bool hasAny = true; hasAny && outEnt != std::end(entryBuf) && outPos != std::end(pointBuf); )
+      for ( bool hasAny = true; hasAny && outEnt != entryEnd && outPos != pointEnd; )
       {
         auto  limits = Abstract::EntrySet::Limits{ unsigned(-1), 0 };
         auto  weight = 1.0;
@@ -487,14 +502,14 @@ namespace queries {
         center = center / sumpos;
 
       // check if new or intersects with previously created element
-        if ( outEnt != std::begin(entryBuf) && outEnt[-1].limits.uMax >= limits.uMin && outEnt[-1].weight < weight )
+        if ( outEnt != entryBuf.data() && outEnt[-1].limits.uMax >= limits.uMin && outEnt[-1].weight < weight )
           outOrg = outPos = (EntryPos*)(--outEnt)->spread.pbeg;
 
         for ( auto& next: querySet )
         {
         // copy relevant entries until possible overflow
-          if ( (outPos = SetPoints( outPos, std::end(pointBuf), *next.abstract.entries.pbeg )) == std::end(pointBuf) )
-            return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+          if ( (outPos = SetPoints( outPos, pointEnd, *next.abstract.entries.pbeg )) == pointEnd )
+            return abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
 
         // skip lower elements
           if ( next.abstract.entries.pbeg->limits.uMin == limits.uMin )
@@ -503,7 +518,7 @@ namespace queries {
 
         *outEnt++ = { limits, weight, center, { outOrg, outPos } };
       }
-      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
     }
     return abstract;
   }
@@ -514,8 +529,8 @@ namespace queries {
   {
     if ( abstract.dwMode != abstract.Rich )
     {
-      auto  outEnt = std::begin(entryBuf);
-      auto  outPos = std::begin(pointBuf);
+      auto  outEnt = entryBuf.data();
+      auto  outPos = pointBuf.data();
 
     // request all the queries in '&' operator; not found queries force to return {}
       for ( auto& next: querySet )
@@ -524,7 +539,7 @@ namespace queries {
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
-      while ( outEnt != std::end(entryBuf) )
+      while ( outEnt != entryEnd )
       {
         auto  nindex = size_t(0);
         auto  begpos = unsigned{};
@@ -547,8 +562,8 @@ namespace queries {
         // check if found
           if ( rent.empty() )
           {
-            if ( outEnt != entryBuf )
-              return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+            if ( outEnt != entryBuf.data() )
+              return abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
             return abstract = {};
           }
 
@@ -579,14 +594,14 @@ namespace queries {
         {
           *outPos++ = *next.abstract.entries.pbeg->spread.pbeg;
             ++next.abstract.entries.pbeg;
-          if ( outPos == std::end(pointBuf) )
-            return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+          if ( outPos == pointEnd )
+            return abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
         }
 
         *outEnt++ = { { uLower, unsigned(uLower + querySet.size() - 1) }, 1.0 - weight, center / ctsumm,
           { outPos - querySet.size(), outPos } };
       }
-      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
     }
     return abstract;
   }
@@ -634,8 +649,8 @@ namespace queries {
   {
     if ( abstract.dwMode != abstract.Rich )
     {
-      auto  outEnt = std::begin(entryBuf);
-      auto  outPos = std::begin(pointBuf);
+      auto  outEnt = entryBuf.data();
+      auto  outPos = pointBuf.data();
 
     // request all the queries in 'fuzzy operator; by the request, quorum may be accessed
     // with this query and at least one element is available and provides the quorum
@@ -644,14 +659,15 @@ namespace queries {
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
-      while ( outEnt != std::end(entryBuf) && outPos != std::end(pointBuf) )
+      while ( outEnt != entryEnd && outPos != pointEnd )
       {
-        auto  center = double(0);
-        auto  ctsumm = double(0);
+        auto  center = double(0);     // расчёт центроида веса
+        auto  ctsumm = double(0);     // сумма весов орт
         auto  uLower = unsigned(-1);
         auto  uUpper = unsigned(0);
         auto  scalar = double(0.0);
-        auto  length = double(0.0);
+        auto  en_len = double(0.0);
+        auto  quo_fl = double(0.0);
         auto  weight = double{};
         auto  outOrg = outPos;
         int   despos;                 // desired position
@@ -668,18 +684,19 @@ namespace queries {
             uLower = std::min( uLower, rentry.pbeg->limits.uMin );
             uUpper = std::max( uUpper, rentry.pbeg->limits.uMax );
             scalar += rentry.pbeg->weight * DistRange( rentry.pbeg->center - despos );
+            en_len += rentry.pbeg->weight * rentry.pbeg->weight;
             center += rentry.pbeg->weight * rentry.pbeg->center;
             ctsumm += rentry.pbeg->weight;
-            length += rquery.keyRange;
+            quo_fl += rquery.keyRange;
           }
         }
 
         // check if element is found
         if ( uLower != unsigned(-1) )
         {
-          bool  useEnt = length >= quorum && (weight = scalar / length) >= 0.01;
+          bool  useEnt = quo_fl >= quorum && (weight = scalar / sqrt(querySet.size() * en_len)) >= 0.01;
 
-          if ( useEnt && outEnt != entryBuf && outEnt[-1].limits.uMax >= uLower )
+          if ( useEnt && outEnt != entryBuf.data() && outEnt[-1].limits.uMax >= uLower )
           {
             if ( (useEnt = (outEnt[-1].weight < weight)) == true )
               outOrg = outPos = (EntryPos*)(--outEnt)->spread.pbeg;
@@ -693,7 +710,7 @@ namespace queries {
             if ( rentry.size() != 0 )
             {
               if ( useEnt )
-                outPos = SetPoints( outPos, std::end(pointBuf), *rentry.pbeg );
+                outPos = SetPoints( outPos, pointEnd, *rentry.pbeg );
 
               if ( rquery.abstract.entries.pbeg->limits.uMin == uLower )
                 ++rquery.abstract.entries.pbeg;
@@ -704,7 +721,8 @@ namespace queries {
             *outEnt++ = { { uLower, uUpper }, weight, center / ctsumm, { outOrg, outPos } };
         } else break;
       }
-      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+      abstract = { outEnt != entryBuf.data() ? Abstract::Rich : Abstract::None, 0,
+        { entryBuf.data(), outEnt } };
     }
     return abstract;
   }
@@ -733,7 +751,7 @@ namespace queries {
   {
     if ( abstract.dwMode != abstract.Rich )
     {
-      auto  outEnt = std::begin(entryBuf);
+      auto  outEnt = entryBuf.data();
       auto  nFound = size_t(0);
 
     // ensure selected allocated
@@ -747,7 +765,7 @@ namespace queries {
 
     // list elements and select the best tuples for each possible compact entry;
     // shrink overlapping entries to suppress far and low-weight entries
-      while ( outEnt != std::end(entryBuf) )
+      while ( outEnt != entryEnd )
       {
         auto      plower = (Abstract*)nullptr;
         unsigned  ulower;
@@ -771,7 +789,7 @@ namespace queries {
 
       // check if found
         if ( plower == nullptr )
-          return abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+          return abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
 
       // create output entry
         ulower = (*outEnt++ = *plower->entries.pbeg++).limits.uMin;
@@ -781,7 +799,7 @@ namespace queries {
           if ( selected[i]->entries.size() != 0 && selected[i]->entries.pbeg->limits.uMin == ulower )
             ++selected[i]->entries.pbeg;
       }
-      abstract = { Abstract::Rich, 0, { entryBuf, outEnt } };
+      abstract = { Abstract::Rich, 0, { entryBuf.data(), outEnt } };
     }
     return abstract;
   }
