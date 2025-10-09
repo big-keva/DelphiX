@@ -46,7 +46,7 @@ namespace dynamic {
       auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override
         {  return this;  }
       auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override
-        {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
+        {  return packPos != -1 && docStore != nullptr ? docStore->Get( packPos ) : nullptr;  }
       auto  GetVersion() const -> uint64_t override
         {  return version;  }
 
@@ -64,6 +64,7 @@ namespace dynamic {
       auto  SetId( const EntityId& ) -> Entity&;
       auto  SetIndex( uint32_t ) -> Entity&;
       auto  SetOwner( Iface* ) -> Entity&;
+      auto  SetStore( IStorage::IDumpStore* ) -> Entity&;
       auto  SetExtra( const StrView& ) -> Entity&;
       auto  SetPackPos( int64_t ) -> Entity&;
       auto  SetVersion( uint64_t ) -> Entity&;
@@ -82,12 +83,13 @@ namespace dynamic {
       uint64_t              version;
 
       mtc::Iface*           ownerPtr = nullptr;
+      IStorage::IDumpStore* docStore = nullptr;
       std::atomic<Entity*>  collision = nullptr;  // relocation in the hash table
 
     };
 
   public:
-    EntityTable( uint32_t size_limit, mtc::Iface* owner, Allocator alloc = Allocator() );
+    EntityTable( uint32_t size_limit, mtc::Iface* owner, IStorage::IDumpStore* store, Allocator alloc = Allocator() );
    ~EntityTable();
 
     auto  GetMaxEntities() const -> size_t      {  return entStore.size();  }
@@ -162,7 +164,8 @@ namespace dynamic {
     AtomicEntity   ptrStore;
     StrHashTable   entTable;
 
-    mtc::Iface*    ptrOwner = nullptr;
+    mtc::Iface*           ptrOwner = nullptr;
+    IStorage::IDumpStore* docStore = nullptr;
 
   };
 
@@ -213,6 +216,10 @@ namespace dynamic {
     {  return ownerPtr = po, *this;  }
 
   template <class Allocator>
+  auto  EntityTable<Allocator>::Entity::SetStore( IStorage::IDumpStore* ps ) -> Entity&
+    {  return docStore = ps, *this;  }
+
+  template <class Allocator>
   auto  EntityTable<Allocator>::Entity::SetExtra( const StrView& xtra ) -> Entity&
     {  return extra.insert( extra.end(), xtra.begin(), xtra.end() ), *this;  }
 
@@ -238,11 +245,12 @@ namespace dynamic {
   // EntityTable implementation
 
   template <class Allocator>
-  EntityTable<Allocator>::EntityTable( uint32_t size_limit, mtc::Iface* owner, Allocator alloc ):
+  EntityTable<Allocator>::EntityTable( uint32_t size_limit, mtc::Iface* owner, IStorage::IDumpStore* store, Allocator alloc ):
     entStore( size_limit, alloc ),
     ptrStore( &getEntity( 1 ) ),
     entTable( UpperPrime( size_limit ), alloc ),
-    ptrOwner( owner )
+    ptrOwner( owner ),
+    docStore( store )
   {
     new( entStore.data() )
       Entity( alloc );
@@ -323,7 +331,8 @@ namespace dynamic {
         SetId( id ).
         SetIndex( entptr - &getEntity( 0 ) ).
         SetExtra( xtras ).
-        SetOwner( ptrOwner );
+        SetOwner( ptrOwner ).
+        SetStore( docStore );
       break;
     }
 
