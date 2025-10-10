@@ -438,10 +438,8 @@ namespace static_ {
     iterator = pc->contents.lower_bound( { templStr.data(), ktop } );
 
     if ( templStr.size() != 0 )
-    {
-      while ( iterator != pc->contents.end() && (rcmp = strmatch( templStr, iterator->key )) > 0 )
+      while ( iterator != pc->contents.end() && (rcmp = strmatch( iterator->key, templStr )) < 0 )
         ++iterator;
-    } else rcmp = 0;
 
     if ( rcmp > 0 )
       iterator = pc->contents.end();
@@ -458,10 +456,10 @@ namespace static_ {
     {
       int   rcmp = 0;
 
-      do ++iterator;
-        while ( iterator != contents->contents.end() && templStr.size() != 0 && (rcmp = strmatch( templStr, iterator->key )) < 0 );
+      if ( templStr.size() != 0 ) do ++iterator;
+        while ( iterator != contents->contents.end() && (rcmp = strmatch( iterator->key, templStr )) < 0 );
 
-      if ( iterator != contents->contents.end() && rcmp > 0 )
+      if ( rcmp > 0 )
         iterator = contents->contents.end();
     }
     return iterator != contents->contents.end() ? iterator->key.to_string() : "";
