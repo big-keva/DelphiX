@@ -6,8 +6,8 @@
 namespace DelphiX {
 namespace indexer {
 
-  int   strmatch( const char* sbeg, const char* send, const char* mbeg, const char* mend );
-  int   strmatch( const std::string& str, const mtc::radix::key& match );
+  int   strmatch( const mtc::radix::key&, const std::string& tpl );
 
 }}
+
 # endif   // !__DelphiX_src_indexer_strmatch_hpp__

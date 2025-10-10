@@ -1,36 +1,47 @@
 # include "strmatch.hpp"
+# include "mtc/utf.hpp"
 
 namespace DelphiX {
 namespace indexer {
 
-  int   strmatch( const char* sbeg, const char* send, const char* mbeg, const char* mend )
+  inline  int   cbchar( const uint8_t* str, const uint8_t* end )
   {
-    int   rescmp = 0;
-
-    while ( sbeg != send && mbeg != mend && (rescmp = uint8_t(*sbeg) - uint8_t(*mbeg)) == 0 && *sbeg != '*' && *sbeg != '?' )
-      ++sbeg, ++mbeg;
-
-    if ( sbeg == send )
-      return 0 - (mbeg != mend);
-    if ( mbeg == mend )
-      return 1;
-    if ( *sbeg == '?' )
-      return 0 - (strmatch( sbeg + 1, send, mbeg + 1, mend ) == 0);
-    if ( *sbeg == '*' )
-    {
-      if ( strmatch( sbeg + 1, send, mbeg, mend ) == 0 )
-        return 0;
-      if ( strmatch( sbeg, send, mbeg + 1, mend ) == 0 )
-        return 0;
-      return -1;
-    }
-    return rescmp;
+    return std::max( mtc::utf::cbchar( (const char*)str, end - str ), (size_t)1 );
   }
 
-  int   strmatch( const std::string& str, const mtc::radix::key& match )
+  int   strmatch( const uint8_t* sbeg, const uint8_t* send, const uint8_t* mbeg, const uint8_t* mend )
   {
-    return strmatch( str.data(), str.data() + str.size(), (const char*)match.data(),
-      (const char*)match.data() + match.size() );
+    int   rcmp;
+
+    while ( mbeg != mend )
+    {
+      auto  next = *mbeg++;
+
+      if ( next == '?' )
+        return sbeg < send && strmatch( sbeg + cbchar( sbeg, send ), send, mbeg, mend ) == 0 ? 0 : -1;
+
+      if ( next == '*' )
+      {
+        for ( auto skip = 0; sbeg + skip <= send; ++skip )
+          if ( strmatch( sbeg + skip, send, mbeg, mend ) == 0 )
+            return 0;
+        return -1;
+      }
+
+      if ( sbeg >= send )
+        return -1;
+
+      if ( (rcmp = *sbeg - next) == 0 ) ++sbeg;
+        else return rcmp;
+    }
+
+    return sbeg == send ? 0 : 1;
+  }
+
+  int   strmatch( const mtc::radix::key& key, const std::string& tpl )
+  {
+    return strmatch( key.data(), key.data() + key.size(), (const uint8_t*)tpl.data(),
+      (const uint8_t*)tpl.data() + tpl.size() );
   }
 
 }}
