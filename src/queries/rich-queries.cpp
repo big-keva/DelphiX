@@ -1070,7 +1070,7 @@ namespace queries {
     auto  ablocks = std::vector<std::pair<mtc::api<IEntities>, TermRanker>>();
     auto  fWeight = GetTermIdf( widechar('{') + str + widechar('}') );
     auto  pkblock = mtc::api<IEntities>();
-    auto  keyList = index->ListContents( context::Key( 0xff, str ) );
+    auto  keyList = index->ListContents( context::Key( 0xff, codepages::strtolower( str ) ) );
 
     // check for statistics is present
     if ( fWeight <= 0.01 )    // check if placeholder
