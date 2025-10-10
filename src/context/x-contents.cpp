@@ -288,16 +288,17 @@ namespace context {
 
   // set no_index flags
     if ( def_opts != nullptr && (def_opts->options & FieldOptions::ofDisableIndex) != 0 )
-    {
       mtc::bitset_set( no_index, { 0U, unsigned(lemm.size()) } );
 
-      for ( auto& next: mkup )
-      {
-        auto  pfinfo = fman.Get( next.format );
+    for ( auto& next: mkup )
+    {
+      auto  pfinfo = fman.Get( next.format );
 
-        if ( pfinfo != nullptr && (pfinfo->options & FieldOptions::ofDisableIndex) == 0 )
+      if ( pfinfo != nullptr )
+        if ( (pfinfo->options & FieldOptions::ofDisableIndex) != 0 )
+          mtc::bitset_set( no_index, { next.uLower, next.uUpper } );
+        else
           mtc::bitset_del( no_index, { next.uLower, next.uUpper } );
-      }
     }
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
