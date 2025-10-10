@@ -89,9 +89,10 @@ namespace queries {
       auto  Unpack( EntrySet* tuples, EntryPos* points, unsigned maxlen,
         const Slice<const RankerTag>& format, unsigned id ) -> unsigned
       {
-        return datatype == 10 ?
-          UnpackEntries<ZeroForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id ) :
-          UnpackEntries<LoadForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id );
+        return
+          datatype == 20 ? UnpackEntries<ZeroForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id ) :
+          datatype == 21 ? UnpackEntries<LoadForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id ) :
+          throw std::logic_error( "unknown block type @" __FILE__ ":" LINE_STRING );
       }
     };
 
@@ -269,12 +270,6 @@ namespace queries {
       uint32_t  nWords;
       size_t    uCount = context::formats::Unpack( format,
         ::FetchFrom( fmtRefer.details.data(), nWords ), fmtRefer.details.size() );
-
-      if ( tofind == 3654 )
-      {
-        int i = 0;
-      }
-
       auto&     report = GetChunks( tofind, { format, uCount } );
 
       return report.nWords = nWords, report;
