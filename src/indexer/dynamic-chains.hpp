@@ -621,12 +621,18 @@ namespace dynamic {
   {
     if ( beg != end )
     {
-      int   rescmp;
+      ++beg;
 
-      do ++beg;
-        while ( beg != end && (rescmp = strmatch( beg->key, tpl )) < 0 );
-      if ( rescmp != 0 )
-        beg = end;
+      if ( tpl.length() != 0 )
+      {
+        int   rescmp = 0;
+
+        while ( beg != end && (rescmp = strmatch( beg->key, tpl )) < 0 )
+          ++beg;
+
+        if ( rescmp != 0 )
+          beg = end;
+      }
     }
     return beg != end ? beg->key.to_string() : "";
   }

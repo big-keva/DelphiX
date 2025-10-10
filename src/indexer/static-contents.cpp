@@ -454,13 +454,18 @@ namespace static_ {
   {
     if ( iterator != contents->contents.end() )
     {
-      int   rcmp = 0;
+      ++iterator;
 
-      if ( templStr.size() != 0 ) do ++iterator;
-        while ( iterator != contents->contents.end() && (rcmp = strmatch( iterator->key, templStr )) < 0 );
+      if ( templStr.size() != 0 )
+      {
+        int   rcmp = 0;
 
-      if ( rcmp > 0 )
-        iterator = contents->contents.end();
+        while ( iterator != contents->contents.end() && (rcmp = strmatch( iterator->key, templStr )) < 0 )
+          ++iterator;
+
+        if ( rcmp > 0 )
+          iterator = contents->contents.end();
+      }
     }
     return iterator != contents->contents.end() ? iterator->key.to_string() : "";
   }
