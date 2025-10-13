@@ -295,10 +295,12 @@ namespace context {
       auto  pfinfo = fman.Get( next.format );
 
       if ( pfinfo != nullptr )
+      {
         if ( (pfinfo->options & FieldOptions::ofDisableIndex) != 0 )
           mtc::bitset_set( no_index, { next.uLower, next.uUpper } );
         else
           mtc::bitset_del( no_index, { next.uLower, next.uUpper } );
+      }
     }
 
     for ( unsigned i = 0; i != lemm.size(); ++i )
