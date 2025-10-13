@@ -174,7 +174,7 @@ namespace context {
       outptr = keyptr = (char*)(1 + AllocKey( nalloc, mem ));
 
     for ( outptr = writeint( ::Serialize( outptr, keylen ), (idl << 2)  | is_string | has_class ); len-- != 0; ++str )
-      outptr = writeint( outptr, *str );
+      outptr = writeint( outptr, uint16_t(*str) );
 
     writeint( writeint( outptr, uint16_t(0) ), cls );
   }
@@ -199,7 +199,7 @@ namespace context {
       outptr = keyptr = (char*)(1 + AllocKey( nalloc, mem ));
 
     for ( outptr = writeint( ::Serialize( outptr, keylen ), (idl << 2) | is_string ); len-- != 0; ++str )
-      outptr = writeint( outptr, *str );
+      outptr = writeint( outptr, uint16_t(*str) );
 
     writeint( outptr, uint16_t(0) );
   }
