@@ -448,14 +448,12 @@ namespace dynamic {
 
     for ( runThread = true; runThread; )
     {
-      for ( keySyncro.wait( locker ); keysQueue.Get( addkey ); )
+      if ( keySyncro.wait_for( locker, std::chrono::milliseconds( 100 ) ) == std::cv_status::timeout )
+        continue;
+      while ( keysQueue.Get( addkey ) )
         radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
     }
-    while ( keysQueue.Get( addkey ) )
-      radixTree.Insert( { addkey->data(), addkey->cchkey }, { addkey, 0, 0 } );
   }
-
-  // KeyBlockChains::ChainHook template implementation
 
   template <class Allocator>
   BlockChains<Allocator>::ChainHook::ChainHook( const StrView& key, unsigned b, ChainHook* p, Allocator m ):
