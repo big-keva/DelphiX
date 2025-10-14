@@ -2,6 +2,7 @@
 # include "../../indexer/static-contents.hpp"
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../exceptions.hpp"
+# include "../../macros.hpp"
 # include "commit-contents.hpp"
 # include "merger-contents.hpp"
 # include "object-holders.hpp"

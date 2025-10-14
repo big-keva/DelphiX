@@ -1,13 +1,14 @@
 # include "../../contents.hpp"
 # include "../../slices.hpp"
 # include "../../primes.hpp"
+# include "../../macros.hpp"
 # include <mtc/ptrpatch.h>
 # include <string_view>
+# include <stdexcept>
 # include <cstring>
 # include <vector>
+# include <memory>
 # include <atomic>
-# include <stdexcept>
-# include <mtc/serialize.h>
 
 namespace DelphiX {
 namespace indexer {
