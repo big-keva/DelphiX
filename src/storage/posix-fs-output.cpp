@@ -156,11 +156,11 @@ namespace posixFS {
   {
     for ( ; ; std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) ) )
     {
-      auto  tm = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::system_clock::now().time_since_epoch() ).count();
+      auto  tm = uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch() ).count());
       char  st[64];
 
-      sprintf( st, "%lu", tm );
+      sprintf( st, "%llu", tm );
 
       if ( !CaptureFiles( units.begin(), units.end(), st, policies, forced ) )
         continue;
