@@ -104,12 +104,12 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                if ( REQUIRE( abstract.entries.beg->limits.uMin == 10 ) )
-                  REQUIRE( abstract.entries.beg->limits.uMax == 10 );
-                if ( REQUIRE( abstract.entries.beg->spread.size() == 1 ) )
-                  REQUIRE( abstract.entries.beg->spread.pbeg->offset == 10 );
+                if ( REQUIRE( abstract.entries.pbeg->limits.uMin == 10 ) )
+                  REQUIRE( abstract.entries.pbeg->limits.uMax == 10 );
+                if ( REQUIRE( abstract.entries.pbeg->spread.size() == 1U ) )
+                  REQUIRE( abstract.entries.pbeg->spread.pbeg->offset == 10 );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
@@ -118,12 +118,12 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 2 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                if ( REQUIRE( abstract.entries.beg->limits.uMin == 0 ) )
-                  REQUIRE( abstract.entries.beg->limits.uMax == 0 );
-                if ( REQUIRE( abstract.entries.beg->spread.size() == 1 ) )
-                  REQUIRE( abstract.entries.beg->spread.pbeg->offset == 0 );
+                if ( REQUIRE( abstract.entries.pbeg->limits.uMin == 0 ) )
+                  REQUIRE( abstract.entries.pbeg->limits.uMax == 0 );
+                if ( REQUIRE( abstract.entries.pbeg->spread.size() == 1U ) )
+                  REQUIRE( abstract.entries.pbeg->spread.pbeg->offset == 0 );
               }
             }
           }
@@ -139,10 +139,10 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 2 ) )
+              if ( REQUIRE( abstract.entries.size() == 2U ) )
               {
-                REQUIRE( abstract.entries.beg[0].limits.uMin == 12 );
-                REQUIRE( abstract.entries.beg[1].limits.uMin == 15 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMin == 12 );
+                REQUIRE( abstract.entries.pbeg[1].limits.uMin == 15 );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
@@ -151,11 +151,11 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 4 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                REQUIRE( abstract.entries.beg->limits.uMin == 2 );
-                if ( REQUIRE( abstract.entries.beg->spread.size() == 1 ) )
-                  REQUIRE( abstract.entries.beg->spread.pbeg->offset == 2 );
+                REQUIRE( abstract.entries.pbeg->limits.uMin == 2 );
+                if ( REQUIRE( abstract.entries.pbeg->spread.size() == 1U ) )
+                  REQUIRE( abstract.entries.pbeg->spread.pbeg->offset == 2 );
               }
             }
           }
@@ -174,14 +174,14 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                if ( REQUIRE( abstract.entries.beg->limits.uMin == 10 ) )
-                  REQUIRE( abstract.entries.beg->limits.uMax == 12 );
-                if ( REQUIRE( abstract.entries.beg->spread.size() == 2 ) )
+                if ( REQUIRE( abstract.entries.pbeg->limits.uMin == 10 ) )
+                  REQUIRE( abstract.entries.pbeg->limits.uMax == 12 );
+                if ( REQUIRE( abstract.entries.pbeg->spread.size() == 2U ) )
                 {
-                  REQUIRE( abstract.entries.beg->spread.pbeg[0].offset == 10 );
-                  REQUIRE( abstract.entries.beg->spread.pbeg[1].offset == 12 );
+                  REQUIRE( abstract.entries.pbeg->spread.pbeg[0].offset == 10 );
+                  REQUIRE( abstract.entries.pbeg->spread.pbeg[1].offset == 12 );
                 }
               }
             }
@@ -201,11 +201,11 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 3 ) )
+              if ( REQUIRE( abstract.entries.size() == 3U ) )
               {
-                REQUIRE( abstract.entries.beg[0].limits.uMin == 10 );
-                REQUIRE( abstract.entries.beg[1].limits.uMin == 12 );
-                REQUIRE( abstract.entries.beg[2].limits.uMin == 15 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMin == 10 );
+                REQUIRE( abstract.entries.pbeg[1].limits.uMin == 12 );
+                REQUIRE( abstract.entries.pbeg[2].limits.uMin == 15 );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
@@ -214,8 +214,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 4 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
-                REQUIRE( abstract.entries.beg->limits.uMin == 2 );
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
+                REQUIRE( abstract.entries.pbeg->limits.uMin == 2 );
             }
             if ( REQUIRE( query->SearchDoc( 3 ) == 3 ) )
             {
@@ -223,8 +223,8 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 2 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
-                 REQUIRE( abstract.entries.beg->limits.uMin == 0 );
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
+                 REQUIRE( abstract.entries.pbeg->limits.uMin == 0 );
             }
           }
         }
@@ -242,11 +242,11 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                REQUIRE( abstract.entries.beg[0].limits.uMin == 14 );
-                REQUIRE( abstract.entries.beg[0].limits.uMax == 15 );
-                REQUIRE( abstract.entries.beg[0].spread.size() == 2 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMin == 14 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMax == 15 );
+                REQUIRE( abstract.entries.pbeg[0].spread.size() == 2U );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
@@ -272,11 +272,11 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 16 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                REQUIRE( abstract.entries.beg[0].limits.uMin == 10 );
-                REQUIRE( abstract.entries.beg[0].limits.uMax == 12 );
-                REQUIRE( abstract.entries.beg[0].spread.size() == 2 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMin == 10 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMax == 12 );
+                REQUIRE( abstract.entries.pbeg[0].spread.size() == 2U );
               }
             }
             if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
@@ -285,11 +285,11 @@ TestItEasy::RegisterFunc  test_rich_queries( []()
 
               REQUIRE( abstract.dwMode == abstract.Rich );
               REQUIRE( abstract.nWords == 2 );
-              if ( REQUIRE( abstract.entries.size() == 1 ) )
+              if ( REQUIRE( abstract.entries.size() == 1U ) )
               {
-                REQUIRE( abstract.entries.beg[0].limits.uMin == 0 );
-                REQUIRE( abstract.entries.beg[0].limits.uMax == 0 );
-                REQUIRE( abstract.entries.beg[0].spread.size() == 1 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMin == 0 );
+                REQUIRE( abstract.entries.pbeg[0].limits.uMax == 0 );
+                REQUIRE( abstract.entries.pbeg[0].spread.size() == 1U );
               }
             }
           }
