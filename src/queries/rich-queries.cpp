@@ -1,4 +1,5 @@
 # include "../../queries/builder.hpp"
+# include "../../macros.hpp"
 # include "rich-rankers.hpp"
 # include "query-tools.hpp"
 # include "field-set.hpp"

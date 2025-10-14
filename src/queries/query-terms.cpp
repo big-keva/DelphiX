@@ -1,4 +1,5 @@
 # include "../../queries/builder.hpp"
+# include "../../macros.hpp"
 # include "query-tools.hpp"
 
 namespace DelphiX {
