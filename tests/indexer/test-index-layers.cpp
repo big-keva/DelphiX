@@ -2,6 +2,7 @@
 # include "../../storage/posix-fs.hpp"
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../indexer/static-contents.hpp"
+# include "../toolbox/tmppath.h"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -33,7 +34,8 @@ public:
 
 auto  CreateDynamicIndex( const mtc::zmap& ix ) -> mtc::api<IContentsIndex>
 {
-  auto  pstore = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) );
+  auto  pstore = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open(
+    GetTmpPath() + "k2" ) );
   auto  pindex = dynamic::Index()
     .Set( dynamic::Settings()
       .SetMaxEntities( 1024 )
