@@ -1,5 +1,6 @@
 # include "../../indexer/layered-contents.hpp"
 # include "../../indexer/static-contents.hpp"
+# include "../../macros.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -104,7 +105,7 @@ TestItEasy::RegisterFunc  layered_contents( []()
             REQUIRE( index->GetMaxIndex() == 0 );
             REQUIRE( index->Reduce().ptr() == index.ptr() );
             REQUIRE_EXCEPTION( index->SetEntity( "i1" ), std::logic_error );
-            REQUIRE_EXCEPTION( index->Commit(), std::logic_error );
+            REQUIRE_NOTHROW( index->Commit() );
           }
         }
         SECTION( "after adding some index it works transparently" )
