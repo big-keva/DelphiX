@@ -2,6 +2,7 @@
 # include "../../indexer/static-contents.hpp"
 # include "../../src/indexer/dynamic-entities.hpp"
 # include "../../storage/posix-fs.hpp"
+# include "../toolbox/tmppath.h"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -41,7 +42,8 @@ TestItEasy::RegisterFunc  static_contents( []()
         auto  serialized = mtc::api<IStorage::ISerialized>();
 
         REQUIRE_NOTHROW( contents = dynamic::Index()
-          .Set( storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) ) ).Create() );
+          .Set( storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open(
+            GetTmpPath() + "k2" ) ) ).Create() );
         REQUIRE_NOTHROW( contents->SetEntity( "aaa", KeyValues( {
             { "aaa", 1161 },
             { "bbb", 1262 },
