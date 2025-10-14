@@ -5,10 +5,6 @@
 # include <mtc/iBuffer.h>
 # include <functional>
 
-# define __LN_STRING( arg )  #arg
-# define _LN__STRING( arg )  __LN_STRING( arg )
-# define LINE_STRING _LN__STRING(__LINE__)
-
 namespace DelphiX
 {
   struct IEntity;             // common object properties
