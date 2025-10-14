@@ -1,6 +1,7 @@
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../storage/posix-fs.hpp"
 # include "../../src/indexer/dynamic-entities.hpp"
+# include "../toolbox/tmppath.h"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 
@@ -226,7 +227,8 @@ TestItEasy::RegisterFunc  dynamic_contents( []()
       }
       SECTION( "created with storage sink, it saves index as static" )
       {
-        auto  sink = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) );
+        auto  sink = storage::posixFS::CreateSink( storage::posixFS::StoragePolicies::Open(
+          GetTmpPath() + "k2" ) );
         auto  well = mtc::api<IStorage::ISerialized>();
 
         REQUIRE_NOTHROW( contents = dynamic::Index()
