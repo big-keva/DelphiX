@@ -3,10 +3,10 @@
 # include "../../contents.hpp"
 # include "../../exceptions.hpp"
 # include "../../primes.hpp"
+# include "../../macros.hpp"
 # include <mtc/ptrpatch.h>
 # include <mtc/wcsstr.h>
 # include <type_traits>
-# include <algorithm>
 # include <stdexcept>
 # include <vector>
 # include <string>
