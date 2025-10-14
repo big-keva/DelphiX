@@ -1,10 +1,9 @@
 # include "../../indexer/dynamic-contents.hpp"
+# include "override-entities.hpp"
 # include "dynamic-entities.hpp"
 # include "dynamic-chains.hpp"
 # include "../../exceptions.hpp"
 # include <mtc/arena.hpp>
-
-#include "override-entities.hpp"
 
 namespace DelphiX {
 namespace indexer {
