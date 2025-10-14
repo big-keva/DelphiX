@@ -11,7 +11,7 @@ using namespace DelphiX::indexer;
 
 auto  CreateEntityTable( std::initializer_list<std::pair<std::string, std::string>> entities ) -> std::vector<char>
 {
-  dynamic::EntityTable<>  dynamicEntities( 100, nullptr );
+  dynamic::EntityTable<>  dynamicEntities( 100, nullptr, nullptr );
 
   for ( auto& next: entities )
     dynamicEntities.SetEntity( next.first, { next.second.data(), next.second.size() } );
@@ -34,7 +34,7 @@ TestItEasy::RegisterFunc  static_entities( []()
 
       SECTION( "entities table may be created with default allocator" )
       {
-        static_::EntityTable<>  entities( serialized );
+        static_::EntityTable<>  entities( serialized, nullptr, nullptr );
 
         SECTION( "entities may be accessed by index" )
         {
@@ -88,7 +88,7 @@ TestItEasy::RegisterFunc  static_entities( []()
       {
         mtc::Arena  memArena;
         auto        entities = memArena.Create<static_::EntityTable<mtc::Arena::allocator<char>>>(
-          serialized, nullptr );
+          serialized, nullptr, nullptr );
 
         SECTION( "iterators are available" )
         {
