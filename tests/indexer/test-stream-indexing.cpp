@@ -1,5 +1,7 @@
 # include "../../indexer/layered-contents.hpp"
 # include "../../storage/posix-fs.hpp"
+# include "../toolbox/tmppath.h"
+# include "../toolbox/dirtool.h"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 # include <thread>
@@ -35,9 +37,12 @@ auto  CreateContents() -> Contents
 
 TestItEasy::RegisterFunc  stream_indexing( []()
   {
+    RemoveFiles( GetTmpPath() + "k2" );
+
     TEST_CASE( "index/stream-indexing" )
     {
-      auto  storage = storage::posixFS::Open( storage::posixFS::StoragePolicies::Open( "/tmp/k2" ) );
+      auto  storage = storage::posixFS::Open( storage::posixFS::StoragePolicies::Open(
+        GetTmpPath() + "k2" ) );
       auto  layered = layered::Index()
         .Set( storage )
         .Set( dynamic::Settings()
@@ -48,10 +53,13 @@ TestItEasy::RegisterFunc  stream_indexing( []()
       SECTION( "indexing a set of entities generates a set of indices" )
       {
         std::vector<std::thread>  threads;
+        auto                      kernels = std::thread::hardware_concurrency();
 
-        for ( int i = 0; i < 10; ++i )
+        for ( unsigned i = 0; i < kernels; ++i )
           threads.emplace_back( std::thread( [&]( int base )
           {
+            pthread_setname_np( pthread_self(), "TestThread" );
+
             for ( auto entId = base * 1000; entId < (base + 1) * 1000; ++entId )
             {
               auto  contents = CreateContents();
@@ -62,5 +70,10 @@ TestItEasy::RegisterFunc  stream_indexing( []()
         for ( auto& th: threads )
           th.join();
       }
+      layered = nullptr;
+      storage = nullptr;
+
+      REQUIRE( SearchFiles( GetTmpPath() + "k2.*" ) );
+      RemoveFiles( GetTmpPath() + "k2.*" );
     }
   } );
