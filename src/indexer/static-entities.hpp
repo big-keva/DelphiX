@@ -2,6 +2,7 @@
 # define __DelphiX_src_indexer_static_entities_hxx__
 # include "../../contents.hpp"
 # include "../../primes.hpp"
+# include "../../macros.hpp"
 # include <mtc/ptrpatch.h>
 # include <stdexcept>
 # include <algorithm>
