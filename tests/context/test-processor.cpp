@@ -1,14 +1,13 @@
 # include "../../context/processor.hpp"
 # include "../../textAPI/DOM-dump.hpp"
+# include "../../macros.hpp"
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
 
-template <>
+template <> inline
 auto  Serialize( std::string* to, const void* s, size_t len ) -> std::string*
-{
-  return to->append( (const char*)s, len ), to;
-}
+  {  return to->append( (const char*)s, len ), to;  }
 
 class MockLang: public ILemmatizer
 {
@@ -78,13 +77,13 @@ TestItEasy::RegisterFunc  test_processor( []()
     {
       REQUIRE_NOTHROW( txProc.WordBreak( txBody, ucText ) );
 
-      REQUIRE( txBody.GetTokens().size() == 21 );
+      REQUIRE( txBody.GetTokens().size() == 21U );
 
       SECTION( "formatter may affect word breaking" )
       {
         if ( REQUIRE_NOTHROW( txProc.WordBreak( txBody, ucText, &mockFd ) ) )
         {
-          REQUIRE( txBody.GetTokens().size() == 19 );
+          REQUIRE( txBody.GetTokens().size() == 19U );
         }
       }
     }

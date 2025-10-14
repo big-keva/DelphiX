@@ -1,17 +1,20 @@
 # include "../../textAPI/DOM-text.hpp"
 # include "../../textAPI/DOM-dump.hpp"
 # include "../../textAPI/DOM-load.hpp"
+# include "../../macros.hpp"
 # include <moonycode/codes.h>
 # include <mtc/serialize.h>
 # include <mtc/arena.hpp>
 # include <mtc/test-it-easy.hpp>
 # include <mtc/iStream.h>
 
-template <>
+template <> inline
 auto  Serialize( std::string* to, const void* s, size_t len ) -> std::string*
-{
-  return to->append( (const char*)s, len ), to;
-}
+  {  return to->append( (const char*)s, len ), to;  }
+
+template <> inline
+auto  Serialize( std::vector<char>* to, const void* p, size_t l ) -> std::vector<char>*
+  {  return to->insert( to->end(), (const char*)p, (const char*)p + l ), to;  }
 
 class ByteStreamOnString: public mtc::IByteStream
 {
@@ -66,12 +69,6 @@ const char  tags[] =
   "last text line \"with quotes\"";
 
 # include <mtc/arbitrarymap.h>
-
-template <>
-auto  Serialize( std::vector<char>* to, const void* p, size_t l ) -> std::vector<char>*
-{
-  return to->insert( to->end(), (const char*)p, (const char*)p + l ), to;
-}
 
 class WordsEncoder final
 {
@@ -160,13 +157,13 @@ TestItEasy::RegisterFunc  test_texts( []()
         SECTION( "text blocks ade added to the end of image as strings or widestrings" )
         {
           if ( REQUIRE_NOTHROW( text.AddString( "aaa" ) ) )
-            if ( REQUIRE( text.GetBlocks().size() == 1 ) )
+            if ( REQUIRE( text.GetBlocks().size() == 1U ) )
               REQUIRE( text.GetBlocks().back().GetCharStr() == "aaa" );
           if ( REQUIRE_NOTHROW( text.AddString( { "bbbb", 3 } ) ) )
-            if ( REQUIRE( text.GetBlocks().size() == 2 ) )
+            if ( REQUIRE( text.GetBlocks().size() == 2U ) )
               REQUIRE( text.GetBlocks().back().GetCharStr() == "bbb" );
           if ( REQUIRE_NOTHROW( text.AddString( codepages::mbcstowide( codepages::codepage_utf8, "ccc" ) ) ) )
-            if ( REQUIRE( text.GetBlocks().size() == 3 ) )
+            if ( REQUIRE( text.GetBlocks().size() == 3U ) )
             {
               REQUIRE_EXCEPTION( text.GetBlocks().back().GetCharStr(), std::logic_error );
 
@@ -189,7 +186,7 @@ TestItEasy::RegisterFunc  test_texts( []()
               && REQUIRE_NOTHROW( tag->AddString( "bbb" ) )
               && REQUIRE_NOTHROW( text.AddString( "ccc" ) ) )
             {
-              if ( REQUIRE( text.GetMarkup().size() == 1 ) )
+              if ( REQUIRE( text.GetMarkup().size() == 1U ) )
               {
                 REQUIRE( strcmp( text.GetMarkup().back().format, "block" ) == 0 );
                 REQUIRE( text.GetMarkup().back().uLower == 3 );
@@ -264,8 +261,8 @@ TestItEasy::RegisterFunc  test_texts( []()
       {
         REQUIRE_NOTHROW( load_as::Json( &text, load_as::MakeSource( json ) ) );
 
-        REQUIRE( text.GetBlocks().size() == 6 );
-        REQUIRE( text.GetMarkup().size() == 2 );
+        REQUIRE( text.GetBlocks().size() == 6U );
+        REQUIRE( text.GetMarkup().size() == 2U );
       }
 
       SECTION( "* as tags" )
@@ -273,8 +270,8 @@ TestItEasy::RegisterFunc  test_texts( []()
         text.clear();
         REQUIRE_NOTHROW( load_as::Tags( &text, load_as::MakeSource( tags ) ) );
 
-        REQUIRE( text.GetBlocks().size() == 10 );
-        REQUIRE( text.GetMarkup().size() == 3 );
+        REQUIRE( text.GetBlocks().size() == 10U );
+        REQUIRE( text.GetMarkup().size() == 3U );
       }
 
       SECTION( "* as dump" )
@@ -282,8 +279,8 @@ TestItEasy::RegisterFunc  test_texts( []()
         text.clear();
         REQUIRE_NOTHROW( text.FetchFrom( mtc::sourcebuf( dump ).ptr() ) );
 
-        REQUIRE( text.GetBlocks().size() == 3 );
-        REQUIRE( text.GetMarkup().size() == 1 );
+        REQUIRE( text.GetBlocks().size() == 3U );
+        REQUIRE( text.GetMarkup().size() == 1U );
       }
     }
     SECTION( "BaseDocument may be initialized with initializer list" )
@@ -323,7 +320,7 @@ TestItEasy::RegisterFunc  test_texts( []()
 
     SECTION( "any text may be converted to utf16" )
     {
-      REQUIRE_NOTHROW( inText.CopyUtf16( &ucText ) );
+      REQUIRE_NOTHROW( CopyUtf16( &ucText, inText ) );
 
       REQUIRE( ucText.GetMarkup().size() == inText.GetMarkup().size() );
       REQUIRE( ucText.GetBlocks().size() == inText.GetBlocks().size() );

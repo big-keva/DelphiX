@@ -4,15 +4,11 @@
 
 template <> inline
 auto  Serialize( std::vector<char>* to, const void* p, size_t l ) -> std::vector<char>*
-{
-  return to->insert( to->end(), (const char*)p, (const char*)p + l ), to;
-}
+  {  return to->insert( to->end(), (const char*)p, (const char*)p + l ), to;  }
 
 template <> inline
 auto  Serialize( std::function<void(const void*, size_t)>* to, const void* p, size_t l ) -> std::function<void(const void*, size_t)>*
-{
-  return to != nullptr ? (*to)( p, l ), to : nullptr;
-}
+  {  return to != nullptr ? (*to)( p, l ), to : nullptr;  }
 
 namespace DelphiX {
 namespace context {

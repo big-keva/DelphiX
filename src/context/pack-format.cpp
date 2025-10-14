@@ -1,19 +1,16 @@
 # include "../../context/pack-format.hpp"
 # include "../../contents.hpp"
+# include "../../macros.hpp"
 
 using SerialFn = std::function<void(const void*, size_t)>;
 
-template <>
+template <> inline
 SerialFn* Serialize( SerialFn* f, const void* p, size_t l )
-{
-  return f != nullptr ? (*f)( p, l ), f : nullptr;
-}
+  {  return f != nullptr ? (*f)( p, l ), f : nullptr;  }
 
-template <>
+template <> inline
 std::vector<char>* Serialize( std::vector<char>* o, const void* p, size_t l )
-{
-  return o != nullptr ? o->insert( o->end(), (const char*)p, l + (const char*)p ), o : nullptr;
-}
+  {  return o != nullptr ? o->insert( o->end(), (const char*)p, l + (const char*)p ), o : nullptr;  }
 
 namespace DelphiX {
 namespace context {
