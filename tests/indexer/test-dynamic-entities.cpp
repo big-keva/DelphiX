@@ -20,7 +20,7 @@ TestItEasy::RegisterFunc  dynamic_entities( []()
 
         auto  entity_table = std::unique_ptr<EntityTable>( nullptr );
 
-        REQUIRE_NOTHROW( entity_table = std::make_unique<EntityTable>( max_document_count, nullptr ) );
+        REQUIRE_NOTHROW( entity_table = std::make_unique<EntityTable>( max_document_count, nullptr, nullptr ) );
           REQUIRE( entity_table->GetMaxEntities() == max_document_count );
           REQUIRE( entity_table->GetHashTableSize() == UpperPrime( max_document_count ) );
         SECTION( "for invalid access index, GetEntity( ... ) throws std::invalid_argument" )
@@ -195,7 +195,7 @@ TestItEasy::RegisterFunc  dynamic_entities( []()
       SECTION( "entities table may be created with custom allocator also" )
       {
         auto  entity_arena = mtc::Arena();
-        auto  entity_table = entity_arena.Create<dynamic::EntityTable<mtc::Arena::allocator<char>>>( 10000, nullptr );
+        auto  entity_table = entity_arena.Create<dynamic::EntityTable<mtc::Arena::allocator<char>>>( 10000, nullptr, nullptr );
         auto  entity = mtc::api<IEntity>();
 
         if ( REQUIRE_NOTHROW( entity = entity_table->SetEntity( "aaa" ) ) )

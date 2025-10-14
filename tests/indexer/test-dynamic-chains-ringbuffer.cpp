@@ -54,7 +54,7 @@ TestItEasy::RegisterFunc  dynamic_chains_queue( []()
 
           std::thread( [&]()
             {
-              std::this_thread::sleep_for( std::chrono::milliseconds( 500 ) );
+              std::this_thread::sleep_for( std::chrono::milliseconds( 550 ) );
               ringBuffer.Get( localValue );
             } ).detach();
 
