@@ -26,12 +26,12 @@ namespace queries {
 
     struct EntrySet
     {
-      using Limits = struct
+      struct Limits
       {
         unsigned uMin;
         unsigned uMax;
       };
-      using Spread = struct
+      struct Spread
       {
         const EntryPos* pbeg;
         const EntryPos* pend;
