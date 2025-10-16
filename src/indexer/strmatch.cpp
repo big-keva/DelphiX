@@ -4,7 +4,7 @@
 namespace DelphiX {
 namespace indexer {
 
-  inline  int   cbchar( const uint8_t* str, const uint8_t* end )
+  inline  size_t  cbchar( const uint8_t* str, const uint8_t* end )
   {
     return std::max( mtc::utf::cbchar( (const char*)str, end - str ), (size_t)1 );
   }
