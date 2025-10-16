@@ -12,7 +12,7 @@ TestItEasy::RegisterFunc  patch_table( []()
     {
       SECTION( "patch table may be created with default allocator" )
       {
-        PatchTable patch_table( 301 );
+        PatchTable<> patch_table( 301 );
 
         SECTION( "patch records may be added and accessed by two type of keys:" )
         {
