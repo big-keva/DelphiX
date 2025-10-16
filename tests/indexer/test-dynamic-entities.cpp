@@ -14,7 +14,7 @@ TestItEasy::RegisterFunc  dynamic_entities( []()
     {
       SECTION( "entities table may be created with default allocator" )
       {
-        const size_t max_document_count = 10;
+        const uint32_t max_document_count = 10;
 
         using EntityTable = dynamic::EntityTable<>;
 
@@ -103,8 +103,8 @@ TestItEasy::RegisterFunc  dynamic_entities( []()
                 REQUIRE( entity == nullptr );
               if ( REQUIRE_NOTHROW( entity = entity_table->GetEntity( ENTITY_ID_PREFIX "aaa" ) ) )
               {
-                REQUIRE( entity != nullptr );
-                REQUIRE( entity->GetId() == ENTITY_ID_PREFIX "aaa" );
+                if ( REQUIRE( entity != nullptr ) )
+                  REQUIRE( entity->GetId() == ENTITY_ID_PREFIX "aaa" );
               }
               if ( REQUIRE_NOTHROW( entity = entity_table->GetEntity( ENTITY_ID_PREFIX "ccc" ) ) )
                 REQUIRE( entity == nullptr );
