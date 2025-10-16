@@ -249,7 +249,7 @@ namespace context {
       while ( src != end && (res = *src - *cmp) == 0 )
         ++src, ++cmp;
 
-      return res != 0 ? res : size() - key.size();
+      return res != 0 ? res : (size() > key.size()) - (size() < key.size());
     }
     return 0;
 
