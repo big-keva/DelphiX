@@ -1,13 +1,11 @@
+set(COMMON_SRC toolbox/tmppath.cpp toolbox/dirtool.cpp test-main.cpp)
+
+link_libraries(DelphiX mtc moonycode)
+
 if(FALSE)
-	add_library(test-DelphiX-helpers
-			toolbox/tmppath.cpp
-			toolbox/dirtool.cpp)
-
-	link_libraries(DelphiX test-DelphiX-helpers mtc moonycode)
-
 	add_executable(test-DelphiX-enquote
 		enquote/test-quote.cpp
-		test-main.cpp)
+		${COMMON_SRC})
 
 	add_executable(test-DelphiX-context
 		context/test-key.cpp
@@ -15,21 +13,21 @@ if(FALSE)
 		context/test-processor.cpp
 		context/test-tag-compressor.cpp
 		context/test-fields-manager.cpp
-		test-main.cpp)
+		${COMMON_SRC})
 
 	add_executable(test-DelphiX-queries
 		queries/test-queries-parser.cpp
 		queries/test-rich-queries.cpp
 		queries/test-mini-queries.cpp
-		test-main.cpp)
+		${COMMON_SRC})
 
 	add_executable(test-DelphiX-textAPI
 		textAPI/test-textAPI.cpp
-		test-main.cpp)
+		${COMMON_SRC})
 
 	add_executable(test-DelphiX-storage
 		storage/test-storage-fs-based.cpp
-		test-main.cpp)
+		${COMMON_SRC})
 
 	add_executable(test-DelphiX-indexer
 		indexer/test-commit-contents.cpp
@@ -43,42 +41,37 @@ if(FALSE)
 		indexer/test-static-contents.cpp
 		indexer/test-static-entities.cpp
 		indexer/test-stream-indexing.cpp
-		test-main.cpp)
+		${COMMON_SRC})
+
 else()
-	link_libraries(DelphiX mtc moonycode)
-
 	add_executable(test-DelphiX
-			test-main.cpp
+		enquote/test-quote.cpp
 
-			toolbox/tmppath.cpp
-			toolbox/dirtool.cpp
+		context/test-key.cpp
+		context/test-contents.cpp
+		context/test-processor.cpp
+		context/test-tag-compressor.cpp
+		context/test-fields-manager.cpp
 
-			enquote/test-quote.cpp
+		queries/test-queries-parser.cpp
+		queries/test-rich-queries.cpp
+		queries/test-mini-queries.cpp
 
-			context/test-key.cpp
-			context/test-contents.cpp
-			context/test-processor.cpp
-			context/test-tag-compressor.cpp
-			context/test-fields-manager.cpp
+		textAPI/test-textAPI.cpp
 
-			queries/test-queries-parser.cpp
-			queries/test-rich-queries.cpp
-			queries/test-mini-queries.cpp
+		storage/test-storage-fs-based.cpp
 
-			textAPI/test-textAPI.cpp
-
-			storage/test-storage-fs-based.cpp
-
-			indexer/test-commit-contents.cpp
-			indexer/test-dynamic-chains.cpp
-			indexer/test-dynamic-chains-ringbuffer.cpp
-			indexer/test-dynamic-contents.cpp
-			indexer/test-dynamic-entities.cpp
-			indexer/test-index-layers.cpp
-			indexer/test-layered-contents.cpp
-			indexer/test-patch-table.cpp
-			indexer/test-static-contents.cpp
-			indexer/test-static-entities.cpp
-			indexer/test-stream-indexing.cpp)
+		indexer/test-commit-contents.cpp
+		indexer/test-dynamic-chains.cpp
+		indexer/test-dynamic-chains-ringbuffer.cpp
+		indexer/test-dynamic-contents.cpp
+		indexer/test-dynamic-entities.cpp
+		indexer/test-index-layers.cpp
+		indexer/test-layered-contents.cpp
+		indexer/test-patch-table.cpp
+		indexer/test-static-contents.cpp
+		indexer/test-static-entities.cpp
+		indexer/test-stream-indexing.cpp
+		${COMMON_SRC})
 
 endif()
