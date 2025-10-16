@@ -24,7 +24,7 @@ TestItEasy::RegisterFunc  test_tag_compressor( []()
     SECTION( "... and deserialized" )
     {
       textAPI::FormatTag<unsigned>  tagset[0x20];
-      unsigned                      ncount;
+      size_t                        ncount;
 
       SECTION( "* to static array" )
       {
