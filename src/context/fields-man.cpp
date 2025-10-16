@@ -19,7 +19,7 @@ namespace context {
 
   struct FieldManager::impl
   {
-    using map_type = std::unordered_map<std::string, size_t>;
+    using map_type = std::unordered_map<std::string, uint32_t>;
 
     std::vector<FieldOptions>   fields;
     map_type                    strmap;
@@ -34,7 +34,7 @@ namespace context {
 
     if ( (pfound = data->strmap.find( std::string( name ) )) == data->strmap.end() )
     {
-      pfound = data->strmap.insert( { std::string( name ), data->fields.size() } ).first;
+      pfound = data->strmap.insert( { std::string( name ), uint32_t(data->fields.size()) } ).first;
         data->fields.resize( data->fields.size() + 1 );
         data->fields.back().id = pfound->second;
         data->fields.back().name = pfound->first;
