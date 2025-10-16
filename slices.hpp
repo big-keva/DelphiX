@@ -91,7 +91,7 @@ namespace DelphiX
     for ( rescmp = (my_beg != nullptr) - (to_beg != nullptr); rescmp == 0 && my_beg != my_end; ++my_beg, ++to_beg )
       rescmp = *my_beg - *to_beg;
 
-    return rescmp != 0 ? rescmp : this->count - to.count;
+    return rescmp != 0 ? rescmp : (this->count > to.count) - (this->count < to.count);
   }
 }
 
