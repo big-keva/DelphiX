@@ -47,7 +47,7 @@ auto  CreateMiniIndex( const context::Processor& lp, const std::initializer_list
 
 TestItEasy::RegisterFunc  test_mini_queries( []()
 {
-  TEST_CASE( "queries/rich" )
+  TEST_CASE( "queries/mini" )
   {
     auto  lp = context::Processor();
     auto  xx = CreateMiniIndex( lp, {
@@ -82,77 +82,49 @@ TestItEasy::RegisterFunc  test_mini_queries( []()
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( "Городской", {}, xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
-            {
-              auto  abstract = query->GetTuples( 3 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 1 );
+          }
+          if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
+          {
+            auto  abstract = query->GetTuples( 3 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 1 );
           }
         }
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( "фонарь", {}, xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
-            {
-              auto  abstract = query->GetTuples( 2 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+          }
+          if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
+          {
+            auto  abstract = query->GetTuples( 2 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
           }
         }
       }
-      SECTION( "* wildcard produces a complex query" )
+      SECTION( "* wildcard produces a complex query " )
       {
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( mtc::zmap{
           { "wildcard", "с*й" } }, {}, xx, lp, fieldMan ) ) && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
-          {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-              REQUIRE( query->GetTuples( 1 ).factors.size() == 1 );
-            if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
-              REQUIRE( query->GetTuples( 2 ).factors.size() == 1 );
-            if ( REQUIRE( query->SearchDoc( 3 ) == 3 ) )
-              REQUIRE( query->GetTuples( 3 ).factors.size() == 1 );
-          }
-        }
-        if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( "фонарь", {}, xx, lp, fieldMan ) )
-          && REQUIRE( query != nullptr ) )
-        {
-          SECTION( "entities are found with positions" )
-          {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
-
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
-            {
-              auto  abstract = query->GetTuples( 2 );
-
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-            }
-          }
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
+            REQUIRE( query->GetTuples( 1 ).factors.size() == 1 );
+          if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
+            REQUIRE( query->GetTuples( 2 ).factors.size() == 1 );
+          if ( REQUIRE( query->SearchDoc( 3 ) == 3 ) )
+            REQUIRE( query->GetTuples( 3 ).factors.size() == 1 );
         }
       }
       SECTION( "* && query finds entities with both words" )
@@ -160,15 +132,12 @@ TestItEasy::RegisterFunc  test_mini_queries( []()
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( mtc::zmap{ { "&&", mtc::array_zval{ "городской", "фонарь" } } }, {}, xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 2 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 2 );
           }
         }
       }
@@ -177,53 +146,47 @@ TestItEasy::RegisterFunc  test_mini_queries( []()
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( mtc::zmap{ { "||", mtc::array_zval{ "городской", "фонарь" } } }, {}, xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
-            {
-              auto  abstract = query->GetTuples( 2 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 2 );
+          }
+          if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
+          {
+            auto  abstract = query->GetTuples( 2 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
-            if ( REQUIRE( query->SearchDoc( 3 ) == 3 ) )
-            {
-              auto  abstract = query->GetTuples( 3 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 1 );
+          }
+          if ( REQUIRE( query->SearchDoc( 3 ) == 3 ) )
+          {
+            auto  abstract = query->GetTuples( 3 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 1 );
           }
         }
       }
-      SECTION( "* 'quote' query matches exact phrase" )
+      SECTION( "* 'quote' query produces same result as strict '&&' query" )
       {
         if ( REQUIRE_NOTHROW( query = queries::BuildMiniQuery( mtc::zmap{ { "quote", mtc::array_zval{ "старый", "фонарь" } } }, {}, xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 2 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
-            {
-              auto  abstract = query->GetTuples( 2 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 2 );
+          }
+          if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
+          {
+            auto  abstract = query->GetTuples( 2 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 2 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 2 );
           }
         }
       }
@@ -233,22 +196,19 @@ TestItEasy::RegisterFunc  test_mini_queries( []()
             MakeStats( { { "городской", 0.7 }, { "фонарь", 0.05 } } ), xx, lp, fieldMan ) )
           && REQUIRE( query != nullptr ) )
         {
-          SECTION( "entities are found with positions" )
+          if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
           {
-            if ( REQUIRE( query->SearchDoc( 1 ) == 1 ) )
-            {
-              auto  abstract = query->GetTuples( 1 );
+            auto  abstract = query->GetTuples( 1 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 2 );
-            }
-            if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
-            {
-              auto  abstract = query->GetTuples( 3 );
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 2 );
+          }
+          if ( REQUIRE( query->SearchDoc( 2 ) == 3 ) )
+          {
+            auto  abstract = query->GetTuples( 3 );
 
-              REQUIRE( abstract.dwMode == abstract.BM25 );
-              REQUIRE( abstract.factors.size() == 1 );
-            }
+            REQUIRE( abstract.dwMode == abstract.BM25 );
+            REQUIRE( abstract.factors.size() == 1 );
           }
         }
       }
