@@ -112,8 +112,8 @@ template <class T>
     */
     if ( *beg == '(' )
     {
-      auto    len = 1;
-      auto    brc = 1;
+      size_t  len = 1;
+      size_t  brc = 1;
 
       for ( auto  sub = GetExpLen( beg + len, end ); beg + len != end && brc > 0; sub = GetExpLen( beg + (len += sub), end ) )
         if ( sub == 1 )
@@ -135,7 +135,7 @@ template <class T>
     if ( *beg == '"' || *beg == '\'' )
     {
       auto  size = size_t(1);
-      auto  stop = *beg->pwsstr;
+      auto  stop = char(*beg->pwsstr);
 
       for ( auto escape = false; beg + size != end; )
       {
