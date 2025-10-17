@@ -3,7 +3,7 @@
 # include "../../contents.hpp"
 # include "../../exceptions.hpp"
 # include "../../primes.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/ptrpatch.h>
 # include <mtc/wcsstr.h>
 # include <type_traits>
@@ -26,8 +26,8 @@ namespace dynamic {
     {
       friend class EntityTable;
 
-      using string = std::basic_string<char, std::char_traits<char>, Allocator>;
-      using extras = std::vector<char, Allocator>;
+      using string = std::basic_string<char, std::char_traits<char>, AllocatorCast<Allocator, char>>;
+      using extras = std::vector<char, AllocatorCast<Allocator, char>>;
 
     public:
       Entity( Allocator mm );
@@ -43,9 +43,9 @@ namespace dynamic {
         {  return { id, ownerPtr };  }
       auto  GetIndex() const -> uint32_t override
         {  return index;  }
-      auto  GetExtra() const -> mtc::api<const mtc::IByteBuffer> override
+      auto  GetExtra() const -> mtc::api<const IByteBuffer> override
         {  return this;  }
-      auto  GetBundle() const -> mtc::api<const mtc::IByteBuffer> override
+      auto  GetBundle() const -> mtc::api<const IByteBuffer> override
         {  return packPos != -1 && docStore != nullptr ? docStore->Get( packPos ) : nullptr;  }
       auto  GetVersion() const -> uint64_t override
         {  return version;  }
@@ -92,10 +92,10 @@ namespace dynamic {
     EntityTable( uint32_t size_limit, mtc::Iface* owner, IStorage::IDumpStore* store, Allocator alloc = Allocator() );
    ~EntityTable();
 
-    auto  GetMaxEntities() const -> size_t      {  return entStore.size();  }
-    auto  GetHashTableSize() const -> size_t    {  return entTable.size();  }
+    auto  GetMaxEntities() const -> uint32_t  {  return uint32_t(entStore.size());  }
+    auto  GetHashTableSize() const -> size_t  {  return entTable.size();  }
 
-    auto  GetEntityCount() const -> size_t      {  return ptrStore.load() - (Entity*)entStore.data() - 1;  }
+    auto  GetEntityCount() const -> uint32_t  {  return uint32_t(ptrStore.load() - (Entity*)entStore.data() - 1);  }
 
   public:
   /*
@@ -155,8 +155,8 @@ namespace dynamic {
   protected:
     using EntityHolder = typename std::aligned_storage<sizeof(Entity), alignof(Entity)>::type;
     using AtomicEntity = std::atomic<Entity*>;
-    using EntityVector = std::vector<EntityHolder, Allocator>;
-    using StrHashTable = std::vector<AtomicEntity, Allocator>;
+    using EntityVector = std::vector<EntityHolder, AllocatorCast<Allocator, EntityHolder>>;
+    using StrHashTable = std::vector<AtomicEntity, AllocatorCast<Allocator, AtomicEntity>>;
 
     const size_t EntityHolderSize = sizeof(EntityHolder);
 
@@ -329,7 +329,7 @@ namespace dynamic {
 
       (new( entptr ) Entity( entTable.get_allocator() ))->
         SetId( id ).
-        SetIndex( entptr - &getEntity( 0 ) ).
+        SetIndex( uint32_t(entptr - &getEntity( 0 )) ).
         SetExtra( xtras ).
         SetOwner( ptrOwner ).
         SetStore( docStore );
@@ -345,19 +345,22 @@ namespace dynamic {
 
   // search existing documents with same document id and remove
     for ( auto bfirst = true; hvalue != nullptr; hvalue = mtc::ptr::clean( hentry->load() ) )
-      if ( hvalue->index != uint32_t(-1) && StrView( hvalue->id ) == id )
+      if ( StrView( hvalue->id ) == id )
       {
+      // check algorithm consistency
+        if ( hvalue->index == uint32_t(-1) )
+          throw std::logic_error( "inconsistent lock-free algo @" __FILE__ ":" LINE_STRING );
+
       // exclude matching document from the list
         if ( bfirst ) hentry->store( mtc::ptr::dirty( hvalue->collision.load() ) );
           else hentry->store( hvalue->collision.load() );
 
-      // mark excluded document as deleted
-        hvalue->index = uint32_t(-1);
-
       // check if deleted document index is requested
         if ( deleted != nullptr )
-          *deleted = hvalue - &getEntity( 0 );
+          *deleted = uint32_t(hvalue - &getEntity( 0 ));
 
+      // mark excluded document as deleted
+        hvalue->index = uint32_t(-1);
         break;
       }
         else
@@ -367,8 +370,8 @@ namespace dynamic {
       }
 
     // set up the document chain
-    entptr->collision.store( hvalue );
-    entTable[hindex].store( entptr );
+    entptr->collision.store( mtc::ptr::clean( entTable[hindex].load() ) );
+      entTable[hindex].store( entptr );
 
     return entptr;
   }
@@ -454,7 +457,7 @@ namespace dynamic {
     while ( beg < end && beg->index == uint32_t(-1) )
       ++beg;
 
-    return Iterator( *this, beg - &getEntity( 0 ), &EntityTable::next_by_ix );
+    return Iterator( *this, uint32_t(beg - &getEntity( 0 )), &EntityTable::next_by_ix );
   }
 
   template <class Allocator>
@@ -463,12 +466,12 @@ namespace dynamic {
     auto  minone = (const Entity*)nullptr;
 
   // locate minimal entity with id >= passed one
-    for ( auto beg = &getEntity( 1 ), end = ptrStore.load(); beg != end; ++beg )
+    for ( auto beg = &getEntity( 1 ), end = (const Entity*)ptrStore.load(); beg != end; ++beg )
       if ( beg->index != uint32_t(-1) && StrView( beg->id ) >= id )
         if ( minone == nullptr || beg->id < minone->id )
           minone = beg;
 
-    return Iterator( *this, minone != nullptr ? minone - &getEntity( 0 ) : uint32_t(-1),
+    return Iterator( *this, minone != nullptr ? uint32_t(minone - &getEntity( 0 )) : uint32_t(-1),
       &EntityTable::next_by_id );
   }
 
@@ -481,7 +484,7 @@ namespace dynamic {
     if ( (o = delEnt.Serialize( o )) == nullptr )
       return nullptr;
 
-    for ( auto ptr = &getEntity( 1 ), end = ptrStore.load(); ptr != end && o != nullptr; ++ptr )
+    for ( auto ptr = &getEntity( 1 ), end = (const Entity*)ptrStore.load(); ptr != end && o != nullptr; ++ptr )
       if ( ptr->index != uint32_t(-1) ) o = ptr->Serialize( o );
         else o = delEnt.Serialize( o );
 
@@ -506,7 +509,7 @@ namespace dynamic {
     auto  lastid = &getEntity( id ).id;
     auto  select = (const Entity*)nullptr;
 
-    for ( auto beg = &getEntity( 1 ), end = ptrStore.load(); beg != end; ++beg )
+    for ( auto beg = &getEntity( 1 ), end = (const Entity*)ptrStore.load(); beg != end; ++beg )
       if ( beg->index != uint32_t(-1) && beg->id > *lastid )
         if ( select == nullptr || beg->id < select->id )
           lastid = &(select = beg)->id;
