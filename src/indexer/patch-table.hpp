@@ -1,7 +1,7 @@
 # include "../../contents.hpp"
 # include "../../slices.hpp"
 # include "../../primes.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/ptrpatch.h>
 # include <string_view>
 # include <stdexcept>
@@ -20,9 +20,6 @@ namespace indexer {
     class PatchRec;
 
     using HashItem = std::atomic<PatchRec*>;
-
-    template <class Target>
-    using MakeAllocator = typename std::allocator_traits<Allocator>::rebind_alloc<Target>;
 
   public:
     PatchTable( size_t maxPatches, Allocator alloc = Allocator() );
@@ -46,8 +43,9 @@ namespace indexer {
     static  bool  IsUint( const StrView& );
 
   protected:
-    std::atomic_long                  modifiers = 0;
-    std::vector<HashItem, Allocator>  hashTable;
+    std::atomic_long                      modifiers = 0;
+    std::vector<HashItem,
+      AllocatorCast<Allocator, HashItem>> hashTable;
 
   };
 
@@ -55,8 +53,6 @@ namespace indexer {
   class PatchTable<Allocator>::PatchVal final: public mtc::IByteBuffer  // record keeping the serialized value
   {
     friend class PatchTable;
-
-    using PatchAlloc = MakeAllocator<PatchVal>;
 
     struct deleted_t {};
 
@@ -87,9 +83,9 @@ namespace indexer {
       {  throw std::logic_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
 
   protected:
-    PatchAlloc        memman;
-    std::atomic_long  rcount = 0;
-    size_t            length;
+    AllocatorCast<Allocator, PatchRec>  memman;
+    std::atomic_long                    rcount = 0;
+    size_t                              length;
   };
 
   template <class Allocator>
@@ -145,7 +141,7 @@ namespace indexer {
   auto  PatchTable<Allocator>::PatchVal::Create( const StrView& data, Allocator mman ) -> mtc::api<const mtc::IByteBuffer>
   {
     auto  nalloc = (sizeof(PatchVal) * 2 + data.size() - 1) / sizeof(PatchVal);
-    auto  palloc = new( MakeAllocator<PatchVal>( mman ).allocate( nalloc ) )
+    auto  palloc = new( AllocatorCast<Allocator, PatchVal>( mman ).allocate( nalloc ) )
       PatchVal( data, mman );
 
     return palloc;
@@ -154,7 +150,7 @@ namespace indexer {
   template <class Allocator>
   auto  PatchTable<Allocator>::PatchVal::Create( const PatchVal::deleted_t&, Allocator mman ) -> mtc::api<const mtc::IByteBuffer>
   {
-    return new( MakeAllocator<PatchVal>( mman ).allocate( 1 ) )
+    return new( AllocatorCast<Allocator, PatchVal>( mman ).allocate( 1 ) )
       PatchVal( PatchVal::deleted, mman );
   }
 
@@ -166,7 +162,7 @@ namespace indexer {
     if ( refcount == 0 )
     {
       this->~PatchVal();
-      memman.deallocate( this, 0 );
+      AllocatorCast<Allocator, PatchVal>( memman ).deallocate( this, 0 );
     }
 
     return refcount;
@@ -235,7 +231,7 @@ namespace indexer {
   template <class Allocator>
   PatchTable<Allocator>::~PatchTable()
   {
-    auto  entryAlloc = MakeAllocator<PatchRec>( hashTable.get_allocator() );
+    auto  entryAlloc = AllocatorCast<Allocator, PatchRec>( hashTable.get_allocator() );
 
     for ( auto& rentry: hashTable )
       for ( auto pentry = mtc::ptr::clean( rentry.load() ); pentry != nullptr; )
@@ -282,7 +278,7 @@ namespace indexer {
     // allocate entry record and store to table
     try
     {
-      pentry = new ( MakeAllocator<PatchRec>( hashTable.get_allocator() ).allocate( 1 ) )
+      pentry = new ( AllocatorCast<Allocator, PatchRec>( hashTable.get_allocator() ).allocate( 1 ) )
         PatchRec( mtc::ptr::clean( rentry.load() ), key, pvalue.ptr(), ++modifiers );
       rentry.store( pentry );
       return pvalue;

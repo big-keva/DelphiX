@@ -2,7 +2,7 @@
 # define __DelphiX_src_indexer_static_entities_hxx__
 # include "../../contents.hpp"
 # include "../../primes.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/ptrpatch.h>
 # include <stdexcept>
 # include <algorithm>
@@ -93,8 +93,8 @@ namespace static_ {
     class Iterator;
 
   protected:
-    using vector_type = std::vector<Entity, Allocator>;
-    using hash_vector = std::vector<Entity*, Allocator>;
+    using vector_type = std::vector<Entity, AllocatorCast<Allocator, Entity>>;
+    using hash_vector = std::vector<Entity*, AllocatorCast<Allocator, Entity*>>;
 
   public:
     EntityTable( const StrView&, mtc::Iface*, IStorage::IDumpStore*, Allocator = Allocator() );
@@ -116,7 +116,8 @@ namespace static_ {
     auto  getNextById( uint32_t id ) const -> uint32_t;
 
   protected:
-    using IndexByKeys = std::vector<uint32_t, Allocator>;
+    using IndexByKeys = std::vector<uint32_t,
+      AllocatorCast<Allocator, uint32_t>>;
 
     mtc::Iface*                             contentsPtr = nullptr;
     vector_type                             entityTable;
@@ -219,7 +220,7 @@ namespace static_ {
 
     if ( pindex != nullptr )
     {
-      auto  malloc = typename std::allocator_traits<Allocator>::rebind_alloc<IndexByKeys>(
+      auto  malloc = AllocatorCast<Allocator, IndexByKeys>(
         entityTable.get_allocator() );
 
       pindex->~IndexByKeys();
@@ -290,7 +291,7 @@ namespace static_ {
       if ( indexByKeys.compare_exchange_weak( pindex, mtc::ptr::dirty( pindex ) ) )
         if ( (pindex = mtc::ptr::clean( pindex )) == nullptr )
         {
-          auto  malloc = typename std::allocator_traits<Allocator>::rebind_alloc<IndexByKeys>(
+          auto  malloc = AllocatorCast<Allocator, IndexByKeys>(
             entityTable.get_allocator() );
 
         // allocate new table
