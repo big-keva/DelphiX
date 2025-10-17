@@ -1,6 +1,6 @@
 # include "../../queries/parser.hpp"
 # include "../../context/processor.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 
 namespace DelphiX {
 namespace queries {
