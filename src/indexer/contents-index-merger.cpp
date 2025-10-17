@@ -1,5 +1,6 @@
 # include "contents-index-merger.hpp"
 # include "dynamic-entities.hpp"
+# include "../../compat.hpp"
 # include <mtc/radix-tree.hpp>
 # include <stdexcept>
 
@@ -84,7 +85,7 @@ namespace fusion {
     std::vector<EntityReference>&   buffer,
     const std::vector<MapEntities>& blocks ) -> std::pair<uint32_t, uint32_t>
   {
-    uint32_t  length = 0;
+    uint64_t  length = 0;
     uint32_t  uOldId = 0;
 
     for ( auto& block: blocks )
@@ -114,11 +115,12 @@ namespace fusion {
       if ( ::Serialize( output.ptr(), diffId ) == nullptr )
         throw std::runtime_error( "Failed to serialize entities" );
 
-      length += ::GetBufLen( diffId );
+      if ( (length += ::GetBufLen( diffId )) >= uint32_t(-1) )
+        throw std::logic_error( "index block too long @" __FILE__ ":" LINE_STRING );
       uOldId = reference.uEntity;
     }
 
-    return { buffer.size(), length };
+    return { uint32_t(buffer.size()), uint32_t(length) };
   }
 
   auto  MergeChains(
@@ -161,11 +163,11 @@ namespace fusion {
         throw std::runtime_error( "Failed to serialize entities" );
       }
 
-      length += ::GetBufLen( diffId ) + ::GetBufLen( nbytes ) + nbytes;
+      length += uint32_t(::GetBufLen( diffId ) + ::GetBufLen( nbytes ) + nbytes);
       uOldId = reference.uEntity;
     }
 
-    return { buffer.size(), length };
+    return { uint32_t(buffer.size()), length };
   }
 
   void  ContentsMerger::MergeEntities()
