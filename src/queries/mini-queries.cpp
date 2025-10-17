@@ -393,25 +393,16 @@ namespace queries {
   {
     if ( abstract.dwMode == abstract.None )
     {
-      auto  idfptr = termList;
+      auto  idfout = termList;
 
-      for ( auto& next: querySet )
-        if ( next.GetTuples( udocid ).factors.size() != 0 )
+      for ( auto term = querySet.begin(); term != querySet.end() && idfout < std::end(termList); ++term )
+        if ( term->GetTuples( udocid ).factors.size() != 0 )
         {
-          if ( idfptr != termList)
-          {
-            auto  crange = std::max_element( termList, idfptr,
-              []( const BM25Term& t1, const BM25Term& t2 ){  return t1.dblIDF < t2.dblIDF;  } );
-            auto  nrange = std::max_element( next.abstract.factors.beg, next.abstract.factors.end,
-              []( const BM25Term& t1, const BM25Term& t2 ){  return t1.dblIDF < t2.dblIDF;  } );
-            if ( nrange <= crange )
-              continue;
-          }
-          while ( next.abstract.factors.beg != next.abstract.factors.end && idfptr != std::end(termList) )
-            *idfptr++ = *next.abstract.factors.beg++;
+          for ( auto beg = term->abstract.factors.beg; beg < term->abstract.factors.end && idfout < std::end( termList ); )
+            *idfout++ = *beg++;
         }
 
-      return SetAbstract( termList, idfptr );
+      return SetAbstract( termList, idfout );
     }
     return abstract;
   }
