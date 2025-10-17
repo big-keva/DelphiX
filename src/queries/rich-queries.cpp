@@ -1,5 +1,5 @@
 # include "../../queries/builder.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include "rich-rankers.hpp"
 # include "query-tools.hpp"
 # include "field-set.hpp"
@@ -87,7 +87,7 @@ namespace queries {
         tmRanker( std::move( tr ) )  {}
 
     // methods
-      auto  Unpack( EntrySet* tuples, EntryPos* points, unsigned maxlen,
+      auto  Unpack( EntrySet* tuples, EntryPos* points, size_t maxlen,
         const Slice<const RankerTag>& format, unsigned id ) -> unsigned
       {
         return
@@ -676,10 +676,10 @@ namespace queries {
         // check if has the entries; use entries weight in possible quorum
           if ( rentry.size() != 0 )
           {
-            despos = uLower == unsigned(-1) ? rentry.pbeg->center : despos + rquery.keyOrder;
+            despos = uLower == unsigned(-1) ? unsigned(rentry.pbeg->center) : unsigned(despos + rquery.keyOrder);
             uLower = std::min( uLower, rentry.pbeg->limits.uMin );
             uUpper = std::max( uUpper, rentry.pbeg->limits.uMax );
-            scalar += rentry.pbeg->weight * DistRange( rentry.pbeg->center - despos );
+            scalar += rentry.pbeg->weight * DistRange( int(rentry.pbeg->center - despos) );
             en_len += rentry.pbeg->weight * rentry.pbeg->weight;
             center += rentry.pbeg->weight * rentry.pbeg->center;
             ctsumm += rentry.pbeg->weight;
@@ -897,7 +897,7 @@ namespace queries {
     struct QuerySettings
     {
       FieldSet  fieldSet;
-      unsigned  uContext = -1;
+      unsigned  uContext = unsigned(-1);
       bool      isStrict = false;
 
       auto  SetStrict( bool strict ) const -> QuerySettings
