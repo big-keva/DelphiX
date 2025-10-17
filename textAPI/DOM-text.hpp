@@ -1,6 +1,7 @@
 # if !defined( __DelphiX_textAPI_DOM_text_hpp__ )
 # define __DelphiX_textAPI_DOM_text_hpp__
 # include "../text-api.hpp"
+# include "../compat.hpp"
 # include <moonycode/codes.h>
 # include <mtc/serialize.h>
 # include <mtc/wcsstr.h>
@@ -17,8 +18,8 @@ namespace textAPI {
   {
     class  Str;
 
-    template <class To>
-    using rebind = typename std::allocator_traits<Allocator>::template rebind_alloc<To>;
+    template <class C>
+    using rebind = AllocatorCast<Allocator, C>;
 
     template <class C>
     using basestr = std::basic_string<C, std::char_traits<C>, rebind<C>>;
@@ -102,10 +103,12 @@ namespace textAPI {
     auto  Serialize( IText* ) const -> IText*;
 
   protected:
-    std::vector<TextChunk, Allocator> lines;
-    std::vector<MarkupTag, Allocator> spans;
-    mtc::api<Markup>                  pspan;
-    uint32_t                          chars = 0;
+    std::vector<TextChunk,
+      AllocatorCast<Allocator, TextChunk>>  lines;
+    std::vector<MarkupTag,
+      AllocatorCast<Allocator, MarkupTag>>  spans;
+    mtc::api<Markup>                        pspan;
+    uint32_t                                chars = 0;
 
   };
 
@@ -217,7 +220,7 @@ namespace textAPI {
       str, len )[len] = 0;
 
     lines.push_back( { (const void*)pstr, len, codepage } );
-      chars += len;
+      chars += uint32_t(len);
   }
 
   template <class Allocator>
@@ -235,7 +238,7 @@ namespace textAPI {
       str, len )[len] = 0;
 
     lines.push_back( { (const void*)pstr, len, unsigned(-1) } );
-      chars += len;
+      chars += uint32_t(len);
   }
 
   template <class Allocator>
@@ -354,7 +357,7 @@ namespace textAPI {
       }
 
       if ( s == nullptr ) return nullptr;
-        else chars += length;
+        else chars += uint32_t(length);
     }
 
     if ( (s = ::FetchFrom( s, length )) != nullptr )  spans.resize( length );
@@ -466,7 +469,7 @@ namespace textAPI {
       str, len )[len] = 0;
 
     docptr->lines.push_back( { pstr, len, encoding } );
-      docptr->chars += len;
+      docptr->chars += uint32_t(len);
   }
 
   template <class Allocator>
@@ -488,7 +491,7 @@ namespace textAPI {
       str, len )[len] = 0;
 
     docptr->lines.push_back( { pstr, len, unsigned(-1) } );
-      docptr->chars += len;
+      docptr->chars += uint32_t(len);
   }
 
   template <class Allocator>
