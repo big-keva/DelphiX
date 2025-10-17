@@ -71,7 +71,7 @@ namespace context {
         {  return mtc::bitset_last( fids );  }
       auto  begin() const -> const_iterator
         {
-          auto  ifirst = unsigned(mtc::bitset_first( fids ));
+          auto  ifirst = mtc::bitset_first( fids );
           auto  uorder = unsigned(ifirst / (sizeof(uint64_t) * CHAR_BIT));
           auto  ushift = unsigned(ifirst % (sizeof(uint64_t) * CHAR_BIT));
 
