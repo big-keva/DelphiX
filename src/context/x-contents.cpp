@@ -1,5 +1,6 @@
 # include "../../context/x-contents.hpp"
 # include "../../context/pack-format.hpp"
+# include "../../compat.hpp"
 # include <mtc/arbitrarymap.h>
 # include <mtc/arena.hpp>
 
@@ -99,7 +100,7 @@ namespace context {
   };
 
   template <unsigned typeId, class Entry, class Alloc>
-  class Compressor: public Contents::Entries, protected std::vector<Entry, Alloc>
+  class Compressor: public Contents::Entries, protected std::vector<Entry, AllocatorCast<Alloc, Entry>>
   {
   public:
     enum: unsigned {  objectType = typeId  };
@@ -107,7 +108,7 @@ namespace context {
     using entry_type = Entry;
 
   public:
-    Compressor( Alloc alloc ): std::vector<Entry, Alloc>( alloc ) {}
+    Compressor( Alloc alloc ): std::vector<Entry, AllocatorCast<Alloc, Entry>>( alloc ) {}
 
     void  AddRecord( const entry_type& entry )
     {
@@ -157,7 +158,7 @@ namespace context {
     template <class Allocator>
     static  DataHolder* Create( unsigned type, size_t size, Allocator mman )
     {
-      auto  malloc = typename std::allocator_traits<Allocator>::rebind_alloc<DataHolder>( mman );
+      auto  malloc = AllocatorCast<Allocator, DataHolder>( mman );
       auto  nalloc = sizeof(DataHolder) - sizeof(DataHolder::buffer) + size;
       auto  palloc = malloc.allocate( (nalloc + sizeof(DataHolder) - 1) / sizeof(DataHolder) );
 
