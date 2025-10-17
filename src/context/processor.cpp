@@ -57,7 +57,7 @@ namespace context {
     auto  fwdtop = fwdFmt.begin();
     auto  bcktop = bckFmt.begin();
 
-    for ( size_t windex = 0; windex != tokens.size(); ++windex )
+    for ( uint32_t windex = 0; windex != uint32_t(tokens.size()); ++windex )
     {
       auto& rfword = tokens[windex];
       auto  uLower = rfword.offset;
@@ -67,9 +67,9 @@ namespace context {
       while ( bcktop != bckFmt.end() && (*bcktop)->uUpper <  uUpper ) (*bcktop++)->uUpper = windex;
     }
     while ( fwdtop != fwdFmt.end() )
-      (*fwdtop++)->uLower = tokens.size() - 1;
+      (*fwdtop++)->uLower = uint32_t(tokens.size()) - 1;
     while ( bcktop != bckFmt.end() )
-      (*bcktop++)->uUpper = tokens.size() - 1;
+      (*bcktop++)->uUpper = uint32_t(tokens.size()) - 1;
   }
 
 }}
