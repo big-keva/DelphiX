@@ -62,7 +62,7 @@ namespace queries {
       if ( tagOffset.size() <= tag )
         tagOffset.insert( tagOffset.end(), tag - tagOffset.size() + 1, uint32_t(-1) );
       if ( tagOffset[tag] == uint32_t(-1) )
-        tagOffset[tag] = fidWeight.size();
+        tagOffset[tag] = unsigned(fidWeight.size());
 
     // insert forms mapping
       if ( fidWeight.size() <= tagOffset[tag] + 256 )
