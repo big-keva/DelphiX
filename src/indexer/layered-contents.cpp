@@ -2,7 +2,7 @@
 # include "../../indexer/static-contents.hpp"
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../exceptions.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include "commit-contents.hpp"
 # include "merger-contents.hpp"
 # include "object-holders.hpp"
@@ -17,7 +17,7 @@ namespace layered {
 
   class ContentsIndex final: protected IndexLayers, public IContentsIndex
   {
-    std::atomic<size_t> referenceCount = 0;
+    std::atomic_long  referenceCount = 0;
 
     long  Attach() override {  return ++referenceCount;  }
     long  Detach() override;
@@ -175,7 +175,7 @@ namespace layered {
 
     // on dynamic index overflow, rotate the last index by creating new one in a new flakes,
     // and continue Setting attempts
-      catch ( const index_overflow& xo )
+      catch ( const index_overflow& /*xo*/ )
       {
         shlock.unlock();  exlock.lock();
 
@@ -365,14 +365,14 @@ namespace layered {
   */
   auto  ContentsIndex::SelectLimits() -> std::pair<LayersIt, LayersIt>
   {
-    auto  asizes = std::vector<uint32_t>();
+    auto  asizes = std::vector<size_t>();
     auto  select = std::make_pair( layers.end(), layers.end() );
     float srange;
-    auto  Ranker = [&]( int from, int to ) -> float
+    auto  Ranker = [&]( size_t from, size_t to ) -> float
     {
-      auto  min_size = uint32_t(-1);
-      auto  max_size = uint32_t(0);
-      auto  med_size = uint32_t(0);
+      auto  min_size = size_t(-1);
+      auto  max_size = size_t(0);
+      auto  med_size = size_t(0);
 
       for ( auto i = from; i != to; ++i )
       {
@@ -386,7 +386,7 @@ namespace layered {
       auto  l_factor = 0.2 + sin(1.57 + atan((med_size - 1) / 10000.0)) * 0.8;
       auto  n_factor = 0.2 + sin(2 * atan((to - from - 2) / 6.0)) * 0.8;
 
-      return s_factor * l_factor * n_factor;
+      return float(s_factor * l_factor * n_factor);
     };
 
     if ( merging )
@@ -402,7 +402,7 @@ namespace layered {
           {
             float crange = Ranker( from, to );
 
-            if ( select.first == select.second || crange > srange || (crange == srange && from - to > select.second - select.first) )
+            if ( select.first == select.second || crange > srange || (crange == srange && size_t(to - from) > size_t(select.second - select.first)) )
             {
               select = { layers.begin() + from, layers.begin() + to };
               srange = crange;
