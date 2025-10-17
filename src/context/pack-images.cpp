@@ -94,13 +94,13 @@ namespace imaging {
         return true;
       }
     static  auto  As1251( const textAPI::TextToken& t ) -> unsigned
-      {  return t.uFlags + ((t.length - 1) << 5);  }
+      {  return unsigned(t.uFlags + ((t.length - 1) << 5));  }
     static  auto  AsUtf8( const textAPI::TextToken& t ) -> unsigned
-      {  return t.uFlags + ((codepages::utf8::cbchar( t.pwsstr, t.length ) - 1) << 5) + of_utf8str;  }
+      {  return unsigned(t.uFlags + ((codepages::utf8::cbchar( t.pwsstr, t.length ) - 1) << 5) + of_utf8str);  }
     static  auto  AsDiff( const textAPI::TextToken& t, unsigned diff ) -> unsigned
-      {  return t.uFlags + ((diff - 1) << 5) + of_diffref ;  }
+      {  return unsigned(t.uFlags + ((diff - 1) << 5) + of_diffref);  }
     static  auto  AsOffs( const textAPI::TextToken& t, unsigned next ) -> unsigned
-      {  return t.uFlags + ((next - 1) << 5) + of_backref ;  }
+      {  return unsigned(t.uFlags + ((next - 1) << 5) + of_backref);  }
   };
 
   template <class O>
@@ -110,7 +110,7 @@ namespace imaging {
 
     ::Serialize( o, words.size() );
 
-    for ( size_t pos = 0; pos != words.size(); ++pos )
+    for ( unsigned pos = 0; pos != unsigned(words.size()); ++pos )
       wcoder.EncodeWord( o, words[pos], pos );
   }
 
