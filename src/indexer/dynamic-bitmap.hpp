@@ -1,5 +1,6 @@
 # if !defined( __DelphiX_src_indexer_dynamic_bitmap_hxx__ )
 # define __DelphiX_src_indexer_dynamic_bitmap_hxx__
+# include "../../compat.hpp"
 # include <stdexcept>
 # include <climits>
 # include <atomic>
@@ -10,10 +11,10 @@ namespace indexer {
   template <class Allocator = std::allocator<char>>
   class Bitmap
   {
-    struct vector_data: public std::vector<std::atomic<uint32_t>, Allocator>
+    struct vector_data: std::vector<std::atomic_uint32_t, AllocatorCast<Allocator, std::atomic_uint32_t>>
     {
       vector_data( size_t count, Allocator alloc ):
-        std::vector<std::atomic<uint32_t>, Allocator>( count, alloc ) {}
+        std::vector<std::atomic<uint32_t>, AllocatorCast<Allocator, std::atomic_uint32_t>>( count, alloc ) {}
 
       long  refcount = 1;
     };
@@ -46,7 +47,7 @@ namespace indexer {
   template <class Allocator>
   Bitmap<Allocator>::Bitmap( size_t maxSize, Allocator alloc )
   {
-    bitmap = new( typename std::allocator_traits<Allocator>::rebind_alloc<vector_data>( alloc ).allocate( 1 ) )
+    bitmap = new( AllocatorCast<Allocator, vector_data>( alloc ).allocate( 1 ) )
       vector_data( (maxSize + element_bits - 1) / element_bits, alloc );
   }
 
@@ -93,7 +94,7 @@ namespace indexer {
   {
     if ( bitmap != nullptr && --bitmap->refcount == 0 )
     {
-      auto  alloc = typename std::allocator_traits<Allocator>::rebind_alloc<vector_data>(
+      auto  alloc = AllocatorCast<Allocator, vector_data>(
         bitmap->get_allocator() );
       bitmap->~vector_data();
         alloc.deallocate( bitmap, 0 );
