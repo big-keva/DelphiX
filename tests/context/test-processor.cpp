@@ -1,6 +1,6 @@
 # include "../../context/processor.hpp"
 # include "../../textAPI/DOM-dump.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
