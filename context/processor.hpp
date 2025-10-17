@@ -103,7 +103,7 @@ namespace context {
   template <class Allocator>
   auto  Processor::Lemmatize( BaseImage<Allocator>& image ) const -> BaseImage<Allocator>&
   {
-    auto  strmap = mtc::arbitrarymap<std::vector<int>>();
+    auto  strmap = mtc::arbitrarymap<std::vector<size_t>>();
 
     image.lemmas.clear();
     image.lemmas.resize( image.tokens.size() );
@@ -190,7 +190,7 @@ namespace context {
       }
 
     // list all blocks
-    for ( auto beg = input.GetBlocks().begin(); beg != input.GetBlocks().end(); offset += (beg++)->length )
+    for ( auto beg = input.GetBlocks().begin(); beg != input.GetBlocks().end(); offset += uint32_t((beg++)->length) )
     {
       auto  sblock = beg->GetWideStr();
       auto  buforg = body.AddBuffer( sblock.data(), sblock.size() );
@@ -214,10 +214,10 @@ namespace context {
           auto  origin = ptrtop;
 
           // check non-breakable limits
-          if ( mtc::bitset_get( nonBrk, offset + (ptrtop - buforg) ) )
+          if ( mtc::bitset_get( nonBrk, uint32_t(offset + (ptrtop - buforg)) ) )
           {
             do ++ptrtop;
-              while ( ptrtop != ptrend && mtc::bitset_get( nonBrk, offset + (ptrtop - origin) ) );
+              while ( ptrtop != ptrend && mtc::bitset_get( nonBrk, uint32_t(offset + (ptrtop - origin)) ) );
           }
             else
           // get substring length
