@@ -17,7 +17,7 @@ namespace static_ {
   class ContentsIndex final: public IContentsIndex
   {
     using Allocator = mtc::Arena::allocator<char>;
-    using EntityTable = static_::EntityTable<Allocator>;
+    using EntityTable = EntityTable<Allocator>;
     using ISerialized = IStorage::ISerialized;
     using IByteBuffer = mtc::IByteBuffer;
     using IFlatStream = mtc::IFlatStream;
