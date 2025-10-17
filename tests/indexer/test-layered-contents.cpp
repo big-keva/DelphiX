@@ -1,6 +1,6 @@
 # include "../../indexer/layered-contents.hpp"
 # include "../../indexer/static-contents.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
 

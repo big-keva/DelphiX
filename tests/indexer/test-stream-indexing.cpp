@@ -1,5 +1,6 @@
 # include "../../indexer/layered-contents.hpp"
 # include "../../storage/posix-fs.hpp"
+# include "../../compat.hpp"
 # include "../toolbox/tmppath.h"
 # include "../toolbox/dirtool.h"
 # include <mtc/test-it-easy.hpp>

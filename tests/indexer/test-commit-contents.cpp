@@ -1,7 +1,7 @@
 # include "../../indexer/dynamic-contents.hpp"
 # include "../../storage/posix-fs.hpp"
 # include "../../src/indexer/commit-contents.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include <mtc/recursive_shared_mutex.hpp>
 # include <mtc/test-it-easy.hpp>
 # include <mtc/zmap.h>
