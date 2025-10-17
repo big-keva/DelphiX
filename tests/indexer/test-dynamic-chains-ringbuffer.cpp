@@ -78,30 +78,32 @@ TestItEasy::RegisterFunc  dynamic_chains_queue( []()
       }
       SECTION( "RingBuffer gets and puts are equal" )
       {
-        RingBuffer<int, 1024>  ringBuffer;
-        volatile int           totalReads = 0;
-        std::atomic_int        putThreads = 0;
-        int                    localValue;
-        volatile bool          runThreads = false;
+        RingBuffer<int, 1024>     ringBuffer;
+        int                       totalReads = 0;
+        volatile std::atomic_int  putThreads = 0;
+        int                       localValue;
+        volatile bool             runThreads = false;
+        auto                      threadsSet = std::vector<std::thread>();
 
         for ( int i = 0; i != 3; ++i )
-          std::thread( [&]()
-          {
-            ++putThreads;
-              runThreads = true;
-            for ( int i = 0; i != 1024 * 16; ++i )
-              ringBuffer.Put( i );
-            --putThreads;
-          } ).detach();
+        {
+          threadsSet.push_back( std::thread( [&]()
+            {
+              ++putThreads;
+                runThreads = true;
+
+              for ( int i = 0; i != 1024 * 16; ++i )
+                ringBuffer.Put( i );
+
+              --putThreads;
+            } ) );
+        }
 
         while ( !runThreads )
           (void)NULL;
 
         for ( bool canContinue = true; canContinue; )
         {
-          while ( ringBuffer.Get( localValue ) )
-            ++totalReads;
-
           canContinue = putThreads.load() != 0;
 
           while ( ringBuffer.Get( localValue ) )
@@ -109,6 +111,9 @@ TestItEasy::RegisterFunc  dynamic_chains_queue( []()
         }
 
         REQUIRE( totalReads == 3 * 1024 * 16 );
+
+        for ( auto& next: threadsSet )
+          next.join();
       }
     }
   } );
