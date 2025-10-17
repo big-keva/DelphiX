@@ -1,6 +1,7 @@
 # if !defined( __DelphiX_src_indexer_dynamic_chains_hxx__ )
 # define __DelphiX_src_indexer_dynamic_chains_hxx__
 # include "../../contents.hpp"
+# include "../../compat.hpp"
 # include "dynamic-chains-ringbuffer.hpp"
 # include "dynamic-bitmap.hpp"
 # include "strmatch.hpp"
@@ -32,8 +33,8 @@ namespace dynamic {
     using AtomicLink = std::atomic<ChainLink*>;
     using AtomicHook = std::atomic<ChainHook*>;
 
-    using LinkAllocator = typename std::allocator_traits<Allocator>::rebind_alloc<ChainLink>;
-    using HookAllocator = typename std::allocator_traits<Allocator>::rebind_alloc<ChainHook>;
+    using LinkAllocator = AllocatorCast<Allocator, ChainLink>;
+    using HookAllocator = AllocatorCast<Allocator, AtomicHook>;
 
     enum: size_t
     {
@@ -53,7 +54,7 @@ namespace dynamic {
     public:
       template <class T>
       ChainLink( uint32_t ent, const T& blk ): entity( ent )
-        {  memcpy( data(), blk.data(), lblock = blk.size() );  }
+        {  memcpy( data(), blk.data(), lblock = uint32_t(blk.size()) );  }
 
     public:
       auto  data() const -> const char*  {  return (const char*)(this + 1);  }
@@ -67,7 +68,7 @@ namespace dynamic {
    */
     struct ChainHook
     {
-      using LastAnchor = std::atomic<AtomicLink*>;
+      using LastAnchor = std::atomic<AtomicLink**>;
 
       enum: size_t
       {
@@ -80,7 +81,7 @@ namespace dynamic {
       AtomicHook            pchain;               // collisions
 
       AtomicLink            pfirst = nullptr;     // first in chain
-      AtomicLink            points[cache_size];   // points cache
+      AtomicLink*           points[cache_size];   // points cache
       LastAnchor            ppoint = points - 1;  // invalid value
       std::atomic_uint32_t  ncount = 0;
 
@@ -165,24 +166,25 @@ namespace dynamic {
       }
     };
 
-    std::vector<AtomicHook, Allocator>        hashTable;
-    HookAllocator                             hookAlloc;
+    std::vector<AtomicHook, HookAllocator>      hashTable;
+    AllocatorCast<Allocator, ChainHook>         hookAlloc;
 
-    mtc::radix::tree<RadixLink, Allocator>    radixTree;    // parallel radix tree
-    mutable std::shared_mutex                 radixLock;    // locker to access
+    mtc::radix::tree<RadixLink,
+      AllocatorCast<Allocator, RadixLink>>      radixTree;    // parallel radix tree
+    mutable std::shared_mutex                   radixLock;    // locker to access
 
-    RingBuffer<ChainHook*, ring_buffer_size>  keysQueue;    // queue for keys indexing
-    std::condition_variable_any               keySyncro;    // syncro for shadow indexing keys
-    std::thread                               keyThread;    // shadow keys indexer
-    volatile bool                             runThread = false;
+    RingBuffer<ChainHook*, ring_buffer_size>    keysQueue;    // queue for keys indexing
+    std::condition_variable_any                 keySyncro;    // syncro for shadow indexing keys
+    std::thread                                 keyThread;    // shadow keys indexer
+    volatile bool                               runThread = false;
 
   };
 
   template <class Allocator>
   class BlockChains<Allocator>::KeyLister
   {
-    using const_it_type = typename mtc::radix::tree<RadixLink, Allocator>::
-      const_iterator<std::allocator<char>>;
+    using const_it_type = typename mtc::radix::tree<RadixLink, AllocatorCast<Allocator, RadixLink>>::
+      template const_iterator<std::allocator<char>>;
 
   public:
     KeyLister( std::shared_mutex&, const_it_type&&, const_it_type&&, std::string&& );
@@ -246,7 +248,7 @@ namespace dynamic {
       }
 
   // now try lock the hash table entry to create record
-    for ( hvalue = mtc::ptr::clean( hentry->load() ); !hentry->compare_exchange_weak( hvalue, mtc::ptr::dirty( hvalue ) ); )
+    for ( hvalue = mtc::ptr::clean( hentry->load() ); !hentry->compare_exchange_strong( hvalue, mtc::ptr::dirty( hvalue ) ); )
       hvalue = mtc::ptr::clean( hvalue );
 
   // check if locked hvalue list still contains no needed key; unlock and finish
@@ -391,7 +393,7 @@ namespace dynamic {
           {
             auto  diffId = p->entity - lastId - 1;
 
-            length += ::GetBufLen( diffId );
+            length += uint32_t(::GetBufLen( diffId ));
               chain = ::Serialize( chain, diffId );
             lastId = p->entity;
           }
@@ -404,7 +406,7 @@ namespace dynamic {
             auto  diffId = p->entity - lastId - 1;
             auto  blkLen = p->lblock;
 
-            length += ::GetBufLen( diffId ) + p->lblock + ::GetBufLen( blkLen );
+            length += uint32_t(::GetBufLen( diffId ) + p->lblock + ::GetBufLen( blkLen ));
               chain = ::Serialize( ::Serialize( ::Serialize( chain,
                 diffId ),
                 blkLen ), p->data(), blkLen );
@@ -478,14 +480,15 @@ namespace dynamic {
   template <class Allocator>
   void  BlockChains<Allocator>::ChainHook::Insert( uint32_t entity, const StrView& block )
   {
-    auto        newptr = new( malloc.allocate( (sizeof(ChainLink) * 2 + block.size() - 1) / sizeof(ChainLink) ) )
+    auto          newptr = new( malloc.allocate( (sizeof(ChainLink) * 2 + block.size() - 1) / sizeof(ChainLink) ) )
       ChainLink( entity, block );
-    ChainLink*  pentry;
-    AtomicLink* anchor;
+    AtomicLink*   pstore;
+    ChainLink*    pentry;
+    AtomicLink**  anchor;
 
   // check if no elements available and try write first element;
   // if succeeded, increment element count and return
-    if ( pfirst.compare_exchange_weak( pentry = nullptr, newptr ) )
+    if ( pfirst.compare_exchange_strong( pentry = nullptr, newptr ) )
       return (void)++ncount;
 
   // now pentry has the value != nullptr that was stored in pfirst
@@ -493,42 +496,34 @@ namespace dynamic {
   //  if ( pentry == nullptr )
   //    throw std::logic_error( "algorithm error @" __FILE__ ":" LineId( __LINE__ ) );
 
-  // check if index is not being built this moment and get the latest
-  // insert position
-    if ( mtc::ptr::is_clean( anchor = ppoint.load() ) )
-    {
-      while ( anchor >= points && (pentry = (anchor--)->load())->entity >= entity )
-        (void)NULL;
-      if ( pentry->entity >= entity )
-        pentry = pfirst.load();
-    }
+  // если индекс по цепочке строится прямо сейчас, точкой вставки будет pfirst, иначе
+  // найти в индексе по цепочке элемент с идентификатором меньше уставляемого
+    for ( anchor = ppoint.load(); anchor >= points && (pentry = (pstore = *anchor)->load())->entity > entity; )
+      --anchor;
 
-  // check if the element inserted < than the first element stored;
-  // try prepend current element to the existing list
-    while ( entity < pentry->entity )
-    {
-      if ( newptr->p_next = pentry, pfirst.compare_exchange_weak( pentry, newptr ) )
-        return (++ncount % cache_step) == 0 ? Markup() : (void)NULL;
-    }
+  // если цикл отмотки влево сработал до конца и anchor стал меньше начала индекса, установить
+  // его и pentry на первый элемент списка
+    if ( anchor < points )
+      pentry = (pstore = &pfirst)->load();
 
-  // now the element inserted is > pentry;
-  //  if ( pentry == nullptr || entity <= pentry->entity )
-  //    throw std::logic_error( "algorithm error @" __FILE__ ":" LineId( __LINE__ ) );
+  // теперь отмотать вправо до первого элемента, чей идентификатор будет больше вставляемого
+    while ( pentry != nullptr && pentry->entity < entity )
+      pentry = (pstore = &pentry->p_next)->load();
 
-  // follow the list searching for element to be appended to current element
+  // pstore указывает на атомарную переменную с указателем, на место которого будет вставка,
+  // а pentry хранит его значение
     for ( ; ; )
     {
-      auto  follow = pentry->p_next.load();
+      newptr->p_next = pentry;
 
-      if ( follow == nullptr || follow->entity >= entity )
-      {
-        newptr->p_next = follow;
+    // если найденный элемент больше добавляемого и не изменился, заместить его на новый
+      if ( (pentry == nullptr || pentry->entity > entity) && pstore->compare_exchange_strong( pentry, newptr ) )
+        return (++ncount % cache_step) == 0 ? Markup() : (void)NULL;
 
-        if ( pentry->p_next.compare_exchange_weak( follow, newptr ) )
-          return (++ncount % cache_step) == 0 ? Markup() : (void)NULL;
-      }
-      if ( follow->entity <= entity )
-        pentry = follow;
+    // если изменился, проверить, не стал ли он меньше вставляемого и не надо ли сделать
+    // шаг дальше по списку
+      if ( pentry->entity < entity )
+        pentry = (pstore = &pentry->p_next)->load();
     }
   }
 
@@ -536,17 +531,18 @@ namespace dynamic {
   void  BlockChains<Allocator>::ChainHook::Markup()
   {
     auto  n_gran = ncount.load() / cache_size;
-    auto  pentry = pfirst.load();
-    auto  pcache = mtc::ptr::clean( ppoint.load() );
+    auto  pstore = &pfirst;
+    auto  pentry = pstore->load();
+    auto  pcache = ppoint.load();
 
     // ensure only one cache builder
-    if ( ppoint.compare_exchange_weak( pcache, mtc::ptr::dirty( pcache ) ) ) pcache = points;
+    if ( ppoint.compare_exchange_strong( pcache, points - 1 ) ) pcache = points;
       else return;
 
-    for ( size_t nindex = 0; pentry != nullptr; pentry = pentry->p_next.load() )
+    for ( size_t nindex = 0; pentry != nullptr; pentry = (pstore = &pentry->p_next)->load() )
       if ( nindex++ == n_gran )
       {
-        *pcache++ = pentry;
+        *pcache++ = pstore;
         nindex = 0;
       }
     ppoint = pcache - 1;
