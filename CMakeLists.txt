@@ -4,19 +4,23 @@ project(DelphiX)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_CXX_STANDARD 17)
 
-add_compile_options(-mfpmath=sse -fstack-protector-all -g
+if(MSVC)
+  add_compile_options(-D_CRT_SECURE_NO_WARNINGS)
+else()
+  add_compile_options(-mfpmath=sse -fstack-protector-all -g
 	-W -Wall -Wextra -Wcast-align -pedantic -Wfloat-equal -Wpointer-arith -Wformat-security
 	-Wmissing-format-attribute -Wformat=1 -Wwrite-strings -Wcast-align -Wno-long-long
 	-Woverloaded-virtual -Wno-suggest-attribute=format)
 
-if (SANITIZER_ENABLED)
+  if (SANITIZER_ENABLED)
 	add_compile_options(-fsanitize=address -fsanitize=pointer-compare -fsanitize=pointer-subtract -fsanitize=leak)
 	add_link_options(-fsanitize=address)
-endif()
+  endif()
 
-if (PROFILER_ENABLED)
+  if (PROFILER_ENABLED)
 	add_compile_options(-p -pg)
 	add_link_options(-p -pg)
+  endif()
 endif()
 
 include_directories(
@@ -81,6 +85,6 @@ add_library(DelphiX
 #		${CMAKE_CURRENT_SOURCE_DIR}
 #		${CMAKE_CURRENT_SOURCE_DIR}/contrib)
 
-add_subdirectory(addon)
+# add_subdirectory(addon)
 add_subdirectory(tests)
 add_subdirectory(utils)
