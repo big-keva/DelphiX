@@ -1,6 +1,6 @@
 # include "../../context/pack-format.hpp"
 # include "../../contents.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 
 using SerialFn = std::function<void(const void*, size_t)>;
 
@@ -17,13 +17,14 @@ namespace context {
 namespace formats {
 
   template <class Allocator = std::allocator<char>>
-  class Compressor: protected std::vector<Compressor<Allocator>, Allocator>, public textAPI::FormatTag<unsigned>
+  class Compressor: protected std::vector<Compressor<Allocator>, AllocatorCast<Allocator, Compressor<Allocator>>>,
+    public textAPI::FormatTag<unsigned>
   {
   public:
-    Compressor( Allocator mem = Allocator() ):
-      std::vector<Compressor, Allocator>( mem ), FormatTag{ 0, 0, 0 } {}
-    Compressor( const FormatTag& tag, Allocator mem = Allocator() ):
-      std::vector<Compressor, Allocator>( mem ), FormatTag( tag )  {}
+    Compressor( Allocator mem = Allocator() ): std::vector<Compressor, AllocatorCast<Allocator, Compressor>>( mem ),
+      FormatTag{ 0, 0, 0 } {}
+    Compressor( const FormatTag& tag, Allocator mem = Allocator() ): std::vector<Compressor, AllocatorCast<Allocator, Compressor>>( mem ),
+      FormatTag( tag )  {}
 
     using entry_type = FormatTag;
 
@@ -234,88 +235,5 @@ namespace formats {
 
     return o;
   }
-
-  // Decompressor implementation
-/*
-  inline
-  auto  Decompressor::GetNext( unsigned format ) -> const FormatTag*
-  {
-    for ( auto p = loader; p >= tatree; )
-    {
-      // если есть вложенные элементы, перейти к первому из них
-      if ( p->hasNested )
-      {
-        if ( (source = ::FetchFrom( source, p[1].nextCount )) == nullptr )
-          return loader = nullptr;
-        (p++)->hasNested = false;
-      }
-
-      // вложенных элементов нет, однако могут быть элементы в цепочке;
-      // загрузить следующий
-      if ( p->nextCount-- == 0 )
-      {  --p;  continue;  }
-
-      if ( !LoadIt( *p ) )
-        return loader = nullptr;
-
-      if ( format == unsigned(-1) || format == p->format )
-        return loader = p;
-    }
-    return loader = nullptr;
-  }
-
-  inline
-  auto  Decompressor::FindTag( unsigned offset ) -> const FormatTag*
-  {
-    const FormatTag* select = nullptr;
-
-  // check the trace for covering element
-    for ( auto p = loader; p >= tatree && select == nullptr; --p )
-      if ( p->uLower <= offset && p->uUpper >= offset )
-        select = p;
-
-  // now select is potentially best element; try lookup the format trace
-    for ( auto p = loader; p >= tatree && p->uLower <= offset; )
-    {
-      // если есть вложенные элементы, перейти к первому из них
-      if ( p->hasNested )
-      {
-        if ( (source = ::FetchFrom( source, (loader = p + 1)->nextCount )) == nullptr )
-          return loader = nullptr, select;
-        (p++)->hasNested = false;
-          continue;
-      }
-
-      // вложенных элементов нет, однако могут быть элементы в цепочке;
-      // загрузить следующий
-      if ( p->nextCount-- == 0 )
-        {  --p;  continue;  }
-
-      if ( !LoadIt( *(loader = p) ) )
-        return loader = nullptr, select;
-
-      if ( p->uLower > offset )
-        break;
-      if ( p->uUpper >= offset )
-        select = p;
-    }
-    return select;
-  }
-
-  inline
-  bool  Decompressor::LoadIt( Markup& tag )
-  {
-    if ( (source = ::FetchFrom( ::FetchFrom( ::FetchFrom( source,
-      tag.format ),
-      tag.uLower ),
-      tag.uUpper )) != nullptr )
-    {
-      tag.hasNested = (tag.uLower & 0x01) != 0;
-      tag.uLower >>= 1;
-      tag.uUpper += tag.uLower;
-    }
-    return source != nullptr;
-  }
-*/
 
 }}}
