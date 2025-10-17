@@ -1,10 +1,9 @@
 # include "../../storage/posix-fs.hpp"
+# include "../../compat.hpp"
 # include "posix-fs-dump-store.hpp"
 # include <mtc/fileStream.h>
 # include <mtc/wcsstr.h>
 # include <stdexcept>
-# include <thread>
-# include <unistd.h>
 
 namespace DelphiX {
 namespace storage {
@@ -51,10 +50,14 @@ namespace posixFS {
 
     // if preloaded, return preloaded buffer, else memory-mapped
       if ( policy->mode == preloaded )
-        return infile->PGet( 0, infile->Size() - 0 ).ptr();
+      {
+        if ( infile->Size() > (std::numeric_limits<uint32_t>::max)() )
+          throw std::invalid_argument( "file too large to be preloaded @" __FILE__ ":" LINE_STRING );
+        return infile->PGet( 0, uint32_t(infile->Size() - 0) ).ptr();
+      }
       if ( policy->mode == memory_mapped )
         return infile->MemMap( 0, infile->Size() - 0 ).ptr();
-      throw std::invalid_argument( "invalid open mode" );
+      throw std::invalid_argument( "invalid open mode @" __FILE__ ":" LINE_STRING );
     }
     return nullptr;
   }
