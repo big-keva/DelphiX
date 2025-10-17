@@ -1,5 +1,5 @@
 # include "../../queries/builder.hpp"
-# include "../../macros.hpp"
+# include "../../compat.hpp"
 # include "query-tools.hpp"
 
 namespace DelphiX {
@@ -67,7 +67,7 @@ namespace queries {
 
     // get approximated count
     return {
-      { "count", ncount = ntotal * (1.0 - weight) },
+      { "count", ncount = uint32_t(ntotal * (1.0 - weight)) },
       { "range", double(ncount != 0 ? log( (1.0 + ntotal) / ncount ) / log(1.0 + ntotal) : 0.0) } };
   }
 
