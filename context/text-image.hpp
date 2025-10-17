@@ -3,6 +3,7 @@
 # include "index-keys.hpp"
 # include "../text-api.hpp"
 # include "../slices.hpp"
+# include "../compat.hpp"
 # include <mtc/bitset.h>
 # include <functional>
 # include <memory>
@@ -38,7 +39,7 @@ namespace context {
         bool  operator != ( const const_iterator& it ) const
           {  return fidPtr != it.fidPtr || uOrder != it.uOrder || uShift != it.uShift;  }
         auto  operator *() const -> uint8_t
-          {  return uOrder * sizeof(uint64_t) * CHAR_BIT + uShift;  }
+          {  return uint8_t(uOrder * sizeof(uint64_t) * CHAR_BIT + uShift);  }
         auto  operator ++() -> const_iterator&
           {
             if ( ++uShift == sizeof(uint64_t) * CHAR_BIT )
@@ -46,7 +47,7 @@ namespace context {
 
             while ( uOrder < 4 )
             {
-              while ( uShift < sizeof(uint64_t) * CHAR_BIT && (fidPtr[uOrder] & (1 << uShift)) == 0 )
+              while ( uShift < sizeof(uint64_t) * CHAR_BIT && (fidPtr[uOrder] & (uint64_t(1) << uShift)) == 0 )
                 ++uShift;
               if ( uShift == sizeof(uint64_t) * CHAR_BIT )
                 {  ++uOrder;  uShift = 0;  }
@@ -70,9 +71,9 @@ namespace context {
         {  return mtc::bitset_last( fids );  }
       auto  begin() const -> const_iterator
         {
-          auto  ifirst = mtc::bitset_first( fids );
-          auto  uorder = ifirst / (sizeof(uint64_t) * CHAR_BIT);
-          auto  ushift = ifirst % (sizeof(uint64_t) * CHAR_BIT);
+          auto  ifirst = unsigned(mtc::bitset_first( fids ));
+          auto  uorder = unsigned(ifirst / (sizeof(uint64_t) * CHAR_BIT));
+          auto  ushift = unsigned(ifirst % (sizeof(uint64_t) * CHAR_BIT));
 
           return ifirst != -1 ? const_iterator( fids, uorder, ushift ) : end();
         }
@@ -97,6 +98,8 @@ namespace context {
     using MarkupTag = textAPI::MarkupTag;
     using TextToken = textAPI::TextToken;
 
+    using MarkupTagAllocator = AllocatorCast<Allocator, MarkupTag>;
+    using TextTokenAllocator = AllocatorCast<Allocator, TextToken>;
   public:
     BaseImage( Allocator = Allocator() );
     BaseImage( BaseImage&& );
@@ -113,8 +116,8 @@ namespace context {
     auto  GetLemmas() const -> Slice<const Slice<const Lexeme>>
       {  return { (Slice<const Lexeme>*)lemmas.data(), lemmas.size() };  }
 
-    auto  GetMarkup() -> std::vector<MarkupTag, Allocator>&  {  return markup;  }
-    auto  GetTokens() -> std::vector<TextToken, Allocator>&  {  return tokens;  }
+    auto  GetMarkup() -> std::vector<MarkupTag, MarkupTagAllocator>&  {  return markup;  }
+    auto  GetTokens() -> std::vector<TextToken, TextTokenAllocator>&  {  return tokens;  }
 
     auto  Serialize( textAPI::IText* ) -> textAPI::IText*;
 
@@ -124,11 +127,16 @@ namespace context {
     void  clear_buf();
 
   protected:
-    std::vector<widechar*, Allocator>           bufbox;
-    std::vector<MarkupTag, Allocator>           markup;
-    std::vector<TextToken, Allocator>           tokens;
-    std::vector<Slice<const Lexeme>, Allocator> lemmas;
-    std::vector<Lexeme,    Allocator>           lexbuf;
+    template <class C>
+    using rebind = AllocatorCast<Allocator, C>;
+    template <class C>
+    using vector = std::vector<C, rebind<C>>;
+
+    vector<widechar*>           bufbox;
+    vector<MarkupTag>           markup;
+    vector<TextToken>           tokens;
+    vector<Slice<const Lexeme>> lemmas;
+    vector<Lexeme>              lexbuf;
 
   };
 
@@ -188,7 +196,9 @@ namespace context {
   {
     auto  lineIt = tokens.begin();
     auto  markIt = markup.begin();
-    auto  fPrint = std::function<void( textAPI::IText*, uint32_t )>( [&]( textAPI::IText* to, uint32_t up )
+    auto  fPrint = std::function<void( textAPI::IText*, uint32_t )>();
+
+    fPrint = [&]( textAPI::IText* to, uint32_t up )
       {
         while ( lineIt != tokens.end() && lineIt - tokens.begin() <= up )
         {
@@ -210,7 +220,7 @@ namespace context {
             fPrint( new_to.ptr(), uUpper );
           }
         }
-      } );
+      };
 
     fPrint( text, -1 );
 
