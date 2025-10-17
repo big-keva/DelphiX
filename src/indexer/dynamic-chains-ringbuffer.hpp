@@ -34,7 +34,7 @@ namespace dynamic {
 
         if ( pafter != pfetch )
         {
-          if ( bufend.compare_exchange_weak( pstore, mtc::ptr::dirty( pstore ) ) )
+          if ( bufend.compare_exchange_strong( pstore, mtc::ptr::dirty( pstore ) ) )
             return (void)(pstore->store( t ), bufend = pafter);
         }
       }
