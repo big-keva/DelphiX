@@ -15,7 +15,7 @@ namespace queries {
   auto  UnpackEntries(
     Abstract::EntrySet* output,
     Abstract::EntryPos* appPtr,
-    unsigned            maxLen, const StrView& source, const RankEntry& ranker, unsigned id ) -> unsigned
+    size_t              maxLen, const StrView& source, const RankEntry& ranker, unsigned id ) -> unsigned
   {
     auto  srcPtr( source.data() );
     auto  srcEnd( source.data() + source.size() );
