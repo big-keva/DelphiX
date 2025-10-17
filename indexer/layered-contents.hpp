@@ -19,10 +19,8 @@ namespace layered {
     auto  Set( mtc::api<IStorage> ) -> Index&;
     auto  Create() -> mtc::api<IContentsIndex>;
 
-    static
-    auto  Create( const mtc::api<IContentsIndex>*, size_t ) -> mtc::api<IContentsIndex>;
-    static
-    auto  Create( const std::vector<mtc::api<IContentsIndex>>& ) -> mtc::api<IContentsIndex>;
+    static  auto  Create( const mtc::api<IContentsIndex>*, size_t ) -> mtc::api<IContentsIndex>;
+    static  auto  Create( const std::vector<mtc::api<IContentsIndex>>& ) -> mtc::api<IContentsIndex>;
 
   };
 
