@@ -151,7 +151,7 @@ TestItEasy::RegisterFunc  test_mini_queries( []()
             auto  abstract = query->GetTuples( 1 );
 
             REQUIRE( abstract.dwMode == abstract.BM25 );
-            REQUIRE( abstract.factors.size() == 2 );
+            REQUIRE( abstract.factors.size() == 2U );
           }
           if ( REQUIRE( query->SearchDoc( 2 ) == 2 ) )
           {
