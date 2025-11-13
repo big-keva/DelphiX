@@ -5,7 +5,7 @@
 namespace DelphiX {
 namespace queries {
 
-  using Token = textAPI::TextToken;
+  using Token = context::TextToken;
 
   struct Operator
   {
@@ -57,6 +57,7 @@ namespace queries {
 
   bool  operator == ( const Token& t, char c )            {  return IsChar( t, c );  }
   bool  operator == ( const Token& t, const char* s )     {  return IsWord( t, s );  }
+  bool  operator == ( const Token& l, const Token& r )    {  return l.length == r.length && mtc::w_strncasecmp( l.pwsstr, r.pwsstr, l.length ) == 0;  }
 template <class T>
   bool  operator != ( const Token& t, T x )               {  return !(t == x);  }
 
@@ -172,7 +173,7 @@ template <class T>
 
     for ( len = 1; beg + len != end && !beg[len].LeftSpaced(); ++len )
     {
-      if ( beg[len].uFlags & textAPI::TextToken::is_punct )
+      if ( beg[len].uFlags & context::TextToken::is_punct )
       {
         if ( IsChar( beg[len], '\\' ) ) esc = !esc;
           else
@@ -403,7 +404,7 @@ template <class T>
 
   auto  ParseQuery( const widechar* str, size_t len ) -> mtc::zval
   {
-    auto  intext = textAPI::Document{ { str, len } };
+    auto  intext = DeliriX::Text( { str, len } );
     auto  wbreak = context::Processor().WordBreak( intext );
 
     return ParseQuery( wbreak.GetTokens().data(), wbreak.GetTokens().data() + wbreak.GetTokens().size() );

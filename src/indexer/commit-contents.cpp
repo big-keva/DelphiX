@@ -32,19 +32,19 @@ namespace commit  {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId,
-      const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override;
-    auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
-    auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
+    auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> override;
+    auto  GetKeyStats( const std::string_view& ) const -> BlockInfo override;
 
     auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
+    auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override;
@@ -197,12 +197,12 @@ namespace commit  {
   }
 
   auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>,
-    const StrView&, const StrView& ) -> mtc::api<const IEntity>
+    const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity>
   {
     throw std::logic_error( "commit::SetEntity(...) must not be called" );
   }
 
-  auto  ContentsIndex::SetExtras( EntityId id, const StrView& xtra ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetExtras( EntityId id, const std::string_view& xtra ) -> mtc::api<const IEntity>
   {
     auto  shlock = mtc::make_shared_lock( swLock );
 
@@ -236,7 +236,7 @@ namespace commit  {
     return output != nullptr ? output->GetMaxIndex() : source->GetMaxIndex();
   }
 
-  auto  ContentsIndex::GetKeyBlock( const StrView& key ) const -> mtc::api<IEntities>
+  auto  ContentsIndex::GetKeyBlock( const std::string_view& key ) const -> mtc::api<IEntities>
   {
     auto  shlock = mtc::make_shared_lock( swLock );
     auto  pblock = mtc::api<IEntities>();
@@ -253,7 +253,7 @@ namespace commit  {
     return new Override::Entities( pblock, banset, this );
   }
 
-  auto  ContentsIndex::GetKeyStats( const StrView& key ) const -> BlockInfo
+  auto  ContentsIndex::GetKeyStats( const std::string_view& key ) const -> BlockInfo
   {
     auto  shlock = mtc::make_shared_lock( swLock );
 
@@ -263,7 +263,7 @@ namespace commit  {
     return (output != nullptr ? output : source)->GetKeyStats( key );
   }
 
-  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  auto  ContentsIndex::ListContents( const std::string_view& key ) -> mtc::api<IContentsList>
   {
     return interlocked( mtc::make_shared_lock( swLock ), [&]()
       {

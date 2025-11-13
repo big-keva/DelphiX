@@ -160,7 +160,7 @@ namespace posixFS {
         std::chrono::system_clock::now().time_since_epoch() ).count());
       char  st[64];
 
-      sprintf( st, "%llu", tm );
+      sprintf( st, "%lu", tm );
 
       if ( !CaptureFiles( units.begin(), units.end(), st, policies, forced ) )
         continue;

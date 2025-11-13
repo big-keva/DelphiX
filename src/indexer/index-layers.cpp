@@ -87,7 +87,7 @@ namespace indexer {
     return deleted;
   }
 
-  auto  IndexLayers::setExtras( EntityId id, const StrView& xtras ) -> mtc::api<const IEntity>
+  auto  IndexLayers::setExtras( EntityId id, const std::string_view& xtras ) -> mtc::api<const IEntity>
   {
     auto  entity = mtc::api<const IEntity>();
 
@@ -103,7 +103,7 @@ namespace indexer {
     return layers.size() != 0 ? layers.back().uLower + layers.back().pIndex->GetMaxIndex() - 1 : 0;
   }
 
-  auto  IndexLayers::getKeyBlock( const StrView& key, const mtc::Iface* pix ) const -> mtc::api<IContentsIndex::IEntities>
+  auto  IndexLayers::getKeyBlock( const std::string_view& key, const mtc::Iface* pix ) const -> mtc::api<IContentsIndex::IEntities>
   {
     mtc::api<Entities>  entities;
 
@@ -122,7 +122,7 @@ namespace indexer {
     return entities.ptr();
   }
 
-  auto  IndexLayers::getKeyStats( const StrView& key ) const -> IContentsIndex::BlockInfo
+  auto  IndexLayers::getKeyStats( const std::string_view& key ) const -> IContentsIndex::BlockInfo
   {
     IContentsIndex::BlockInfo blockStats = { uint32_t(-1), 0 };
 
@@ -149,7 +149,7 @@ namespace indexer {
     layers.emplace_back( uLower, ix );
   }
 
-  auto  IndexLayers::listContents( const StrView& key, const mtc::Iface* poo  ) -> mtc::api<IContentsIndex::IContentsList>
+  auto  IndexLayers::listContents( const std::string_view& key, const mtc::Iface* poo  ) -> mtc::api<IContentsIndex::IContentsList>
   {
     auto  contents = std::vector<mtc::api<IContentsIndex::IContentsList>>();
     auto  nextList = mtc::api<IContentsIndex::IContentsList>();

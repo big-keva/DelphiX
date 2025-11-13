@@ -8,7 +8,6 @@ namespace queries {
 
   using IEntities = IContentsIndex::IEntities;
   using Reference = IEntities::Reference;
-  using RankerTag = textAPI::RankerTag;
   using BM25Term  = Abstract::BM25Term;
 
  /*
@@ -546,7 +545,7 @@ namespace queries {
 
   // request terms for the word
     for ( auto& lexeme: lexemes )
-      if ( (pkblock = index->GetKeyBlock( lexeme )) != nullptr )
+      if ( (pkblock = index->GetKeyBlock( { lexeme.data(), lexeme.size() } )) != nullptr )
         ablocks.emplace_back( pkblock, GetTermIdf( lexeme ) );
 
   // if nothing found, return nullptr
@@ -565,7 +564,8 @@ namespace queries {
     auto  ablocks = std::vector<std::pair<mtc::api<IEntities>, double>>();
     auto  fWeight = GetTermIdf( widechar('{') + str + widechar('}') );
     auto  pkblock = mtc::api<IEntities>();
-    auto  keyList = index->ListContents( context::Key( 0xff, str ) );
+    auto  wildKey = context::Key( 0xff, str );
+    auto  keyList = index->ListContents( { wildKey.data(), wildKey.size() } );
 
     // check for statistics is present
     if ( fWeight <= 0.0 )
@@ -577,7 +577,7 @@ namespace queries {
 
     // request terms for the word
     for ( auto& next: lexemes )
-      if ( (pkblock = index->GetKeyBlock( next )) != nullptr )
+      if ( (pkblock = index->GetKeyBlock( { next.data(), next.size() } )) != nullptr )
         ablocks.emplace_back( pkblock, GetTermIdf( next ) );
 
     // if nothing found, return nullptr
@@ -607,7 +607,7 @@ namespace queries {
 
   auto  MiniBuilder::GetTermIdf( const context::Key& key ) const -> double
   {
-    auto  kstats = index->GetKeyStats( key );
+    auto  kstats = index->GetKeyStats( { key.data(), key.size() } );
 
     if ( kstats.nCount == 0 || kstats.nCount > total )
       return -1.0;

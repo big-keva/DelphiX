@@ -42,19 +42,19 @@ namespace static_ {
     auto  GetEntity( uint32_t id ) const -> mtc::api<const IEntity> override;
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
-    auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override;
+    auto  SetExtras( EntityId, const std::string_view& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override
       {  return entities.GetEntityCount();  }
 
-    auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
-    auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
+    auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> override;
+    auto  GetKeyStats( const std::string_view& ) const -> BlockInfo override;
 
     auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override;
     auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override;
 
-    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
+    auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
@@ -142,7 +142,7 @@ namespace static_ {
     implement_lifetime_control
 
   public:
-    LexemeIterator( ContentsIndex*, const StrView& );
+    LexemeIterator( ContentsIndex*, const std::string_view& );
 
   public:
     auto  Curr() -> std::string override;
@@ -161,7 +161,7 @@ namespace static_ {
     xStorage( storage ),
     tableBuf( storage->Entities() ),
     radixBuf( storage->Contents() ),
-    entities( tableBuf, this, storage->Packages(), memArena.get_allocator<char>() ),
+    entities( make_view( tableBuf ), this, storage->Packages(), memArena.get_allocator<char>() ),
     contents( radixBuf->GetPtr() ),
     blockBox( storage->Linkages() ),
     patchTab( std::max( 1000U, entities.GetEntityCount() ), memArena.get_allocator<char>() ),
@@ -215,12 +215,12 @@ namespace static_ {
   }
 
   auto  ContentsIndex::SetEntity( EntityId, mtc::api<const IContents>,
-    const StrView&, const StrView& ) -> mtc::api<const IEntity>
+    const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity>
   {
     throw std::logic_error( "static_::ContentsIndex::SetEntity( ) must not be called" );
   }
 
-  auto  ContentsIndex::SetExtras( EntityId id, const StrView& xtras ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetExtras( EntityId id, const std::string_view& xtras ) -> mtc::api<const IEntity>
   {
     auto  getdoc = entities.GetEntity( id );
 
@@ -234,7 +234,7 @@ namespace static_ {
     return nullptr;
   }
 
-  auto  ContentsIndex::GetKeyBlock( const StrView& key ) const -> mtc::api<IEntities>
+  auto  ContentsIndex::GetKeyBlock( const std::string_view& key ) const -> mtc::api<IEntities>
   {
     auto  pfound = contents.Search( { key.data(), key.size() } );
 
@@ -262,7 +262,7 @@ namespace static_ {
     return nullptr;
   }
 
-  auto  ContentsIndex::GetKeyStats( const StrView& key ) const -> BlockInfo
+  auto  ContentsIndex::GetKeyStats( const std::string_view& key ) const -> BlockInfo
   {
     auto  pfound = contents.Search( { key.data(), key.size() } );
 
@@ -286,7 +286,7 @@ namespace static_ {
     return new EntityIterator( entities.GetIterator( ix ), this );
   }
 
-  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  auto  ContentsIndex::ListContents( const std::string_view& key ) -> mtc::api<IContentsList>
   {
     return new LexemeIterator( this, key );
   }
@@ -423,7 +423,7 @@ namespace static_ {
 
   // ContentsIndex::LexemeIterator implementation
 
-  ContentsIndex::LexemeIterator::LexemeIterator( ContentsIndex* pc, const StrView& pk ):
+  ContentsIndex::LexemeIterator::LexemeIterator( ContentsIndex* pc, const std::string_view& pk ):
     contents( pc ),
     iterator( pc->contents.end() ),
     templStr( pk )

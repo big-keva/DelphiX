@@ -59,7 +59,7 @@ namespace queries {
 
     for ( auto& lexeme: lexset )
     {
-      auto  lstats = index->GetKeyStats( lexeme );
+      auto  lstats = index->GetKeyStats( { lexeme.data(), lexeme.size() } );
 
       if ( lstats.nCount != 0 )
         weight *= (1.0 - 1.0 * lstats.nCount / ntotal);
@@ -77,7 +77,7 @@ namespace queries {
     const context::Processor&       lproc ) -> mtc::zmap
   {
     auto  keyTempl = context::Key( 0xff, codepages::strtolower( token ) );
-    auto  iterator = index->ListContents( keyTempl );
+    auto  iterator = index->ListContents( { keyTempl.data(), keyTempl.size() } );
     auto  docTotal = index->GetMaxIndex() * 1.0;
     auto  negRange = 1.0;
     auto  keyCount = uint32_t{};

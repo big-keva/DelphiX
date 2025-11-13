@@ -82,8 +82,8 @@ namespace static_ {
       Entity*               collision = nullptr;
       IStorage::IDumpStore* dumpStore = nullptr;
 
-      StrView               entity_id;
-      StrView               extras;
+      std::string_view      entity_id;
+      std::string_view      extras;
       uint32_t              index = 0;            // order of creation, default 0
       int64_t               packPos = -1;
       uint64_t              version = 0;
@@ -97,18 +97,18 @@ namespace static_ {
     using hash_vector = std::vector<Entity*, AllocatorCast<Allocator, Entity*>>;
 
   public:
-    EntityTable( const StrView&, mtc::Iface*, IStorage::IDumpStore*, Allocator = Allocator() );
+    EntityTable( const std::string_view&, mtc::Iface*, IStorage::IDumpStore*, Allocator = Allocator() );
    ~EntityTable();
 
     auto  GetEntityCount() const -> uint32_t {  return std::max( 1U, uint32_t( entityTable.size() ) ) - 1;  };
 
   // entities access
     auto  GetEntity( uint32_t id ) const -> mtc::api<const Entity>;
-    auto  GetEntity( const StrView& id ) const -> mtc::api<const Entity>;
+    auto  GetEntity( const std::string_view& id ) const -> mtc::api<const Entity>;
 
   // iterator
     auto  GetIterator( uint32_t ) const -> Iterator;
-    auto  GetIterator( const StrView& ) const -> Iterator;
+    auto  GetIterator( const std::string_view& ) const -> Iterator;
 
   protected:
     auto  getKeyIndex() const -> const EntityTable&;
@@ -182,7 +182,7 @@ namespace static_ {
   // EntityTable implementation
 
   template <class Allocator>
-  EntityTable<Allocator>::EntityTable( const StrView& input, mtc::Iface* owner, IStorage::IDumpStore* dumps, Allocator alloc ):
+  EntityTable<Allocator>::EntityTable( const std::string_view& input, mtc::Iface* owner, IStorage::IDumpStore* dumps, Allocator alloc ):
     contentsPtr( owner ),
     entityTable( alloc ),
     entitiesMap( alloc )
@@ -235,7 +235,7 @@ namespace static_ {
   }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::GetEntity( const StrView& id ) const -> mtc::api<const Entity>
+  auto  EntityTable<Allocator>::GetEntity( const std::string_view& id ) const -> mtc::api<const Entity>
   {
     if ( id.empty() )
       throw std::invalid_argument( "empty entity id" );
@@ -265,10 +265,10 @@ namespace static_ {
   }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::GetIterator( const StrView& id ) const -> Iterator
+  auto  EntityTable<Allocator>::GetIterator( const std::string_view& id ) const -> Iterator
   {
     auto  pindex = getKeyIndex().indexByKeys.load();
-    auto  pfound = std::lower_bound( pindex->begin(), pindex->end(), id, [&]( uint32_t i, const StrView& id )
+    auto  pfound = std::lower_bound( pindex->begin(), pindex->end(), id, [&]( uint32_t i, const std::string_view& id )
       {  return entityTable[i].entity_id < id;  } );
 
     while ( pfound != pindex->end() && !entityTable[*pfound].ValidIndex() )

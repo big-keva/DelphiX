@@ -15,7 +15,7 @@ namespace queries {
 
   using IEntities = IContentsIndex::IEntities;
   using Reference = IEntities::Reference;
-  using RankerTag = textAPI::RankerTag;
+  using RankerTag = context::RankerTag;
 
  /*
   * RichQueryBase обеспечивает синхронное продвижение по форматам вместе с координатами
@@ -27,7 +27,7 @@ namespace queries {
       fmtBlock( fmt ) {}
 
     virtual Abstract  GetTuples( uint32_t );
-    virtual Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) = 0;
+    virtual Abstract& GetChunks( uint32_t, const mtc::span<const RankerTag>& ) = 0;
 
   protected:
     auto  SetPoints( EntryPos*, const EntryPos*, const EntrySet& ) const -> EntryPos*;
@@ -54,7 +54,7 @@ namespace queries {
 
   // overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const mtc::span<const RankerTag>& ) override;
 
   protected:
     mtc::api<IEntities> entBlock;
@@ -88,7 +88,7 @@ namespace queries {
 
     // methods
       auto  Unpack( EntrySet* tuples, EntryPos* points, size_t maxlen,
-        const Slice<const RankerTag>& format, unsigned id ) -> unsigned
+        const mtc::span<const RankerTag>& format, unsigned id ) -> unsigned
       {
         return
           datatype == 20 ? UnpackEntries<ZeroForm>( tuples, points, maxlen, docRefer.details, tmRanker.GetRanker( format ), id ) :
@@ -104,7 +104,7 @@ namespace queries {
 
   // IQuery overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const mtc::span<const RankerTag>& ) override;
 
   protected:
     std::vector<KeyBlock>           blockSet;
@@ -145,7 +145,7 @@ namespace queries {
           return docFound;
         return abstract = {}, docFound = subQuery->SearchDoc( id );
       }
-      auto  GetChunks( uint32_t id, const Slice<const RankerTag>& ft ) -> const Abstract&
+      auto  GetChunks( uint32_t id, const mtc::span<const RankerTag>& ft ) -> const Abstract&
       {
         return abstract.dwMode == abstract.None && docFound == id ?
           abstract = subQuery->GetChunks( id, ft ) : abstract;
@@ -169,7 +169,7 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t id ) override  {  return StrictSearch( id );  }
-    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const mtc::span<const RankerTag>& ) override;
 
   };
 
@@ -181,7 +181,7 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t id ) override {  return StrictSearch( id );  }
-    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const mtc::span<const RankerTag>& ) override;
 
   };
 
@@ -197,7 +197,7 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t id ) override;
-    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const mtc::span<const RankerTag>& ) override;
 
     double    DistRange( int distance ) const
     {
@@ -218,7 +218,7 @@ namespace queries {
 
     // overridables
     uint32_t  SearchDoc( uint32_t ) override;
-    Abstract& GetChunks( uint32_t, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t, const mtc::span<const RankerTag>& ) override;
 
   protected:
     std::vector<Abstract*>  selected;
@@ -247,7 +247,7 @@ namespace queries {
     implement_lifetime_control
 
   // overridables
-    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const mtc::span<const RankerTag>& ) override;
   };
 
   class RichQueryMatch final: public RichQueryField
@@ -257,7 +257,7 @@ namespace queries {
     implement_lifetime_control
 
   // overridables
-    Abstract& GetChunks( uint32_t id, const Slice<const RankerTag>& ) override;
+    Abstract& GetChunks( uint32_t id, const mtc::span<const RankerTag>& ) override;
   };
 
   // RichQueryBase implementation
@@ -306,7 +306,7 @@ namespace queries {
   * For changed document id, unpack && return the entries and entry sets for given
   * format set
   */
-  Abstract& RichQueryTerm::GetChunks( uint32_t tofind, const Slice<const RankerTag>& fmt )
+  Abstract& RichQueryTerm::GetChunks( uint32_t tofind, const mtc::span<const RankerTag>& fmt )
   {
     if ( docRefer.uEntity == tofind && abstract.dwMode == Abstract::None )
     {
@@ -354,7 +354,7 @@ namespace queries {
     return abstract = {}, entityId = uFound;
   }
 
-  Abstract& RichMultiTerm::GetChunks( uint32_t getdoc, const Slice<const RankerTag>& fmt )
+  Abstract& RichMultiTerm::GetChunks( uint32_t getdoc, const mtc::span<const RankerTag>& fmt )
   {
     if ( abstract.entries.empty() )
     {
@@ -454,7 +454,7 @@ namespace queries {
   * Creates best ranked corteges of entries for '&' operator with no additional
   * checks for context except the checks provided by nested elements
   */
-  Abstract& RichQueryAll::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
+  Abstract& RichQueryAll::GetChunks( uint32_t udocid, const mtc::span<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -521,7 +521,7 @@ namespace queries {
 
   // RichQueryOrder implementation
 
-  Abstract& RichQueryOrder::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
+  Abstract& RichQueryOrder::GetChunks( uint32_t udocid, const mtc::span<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -641,7 +641,7 @@ namespace queries {
     }
   }
 
-  Abstract& RichQueryFuzzy::GetChunks( uint32_t  udocid, const Slice<const RankerTag>& format )
+  Abstract& RichQueryFuzzy::GetChunks( uint32_t  udocid, const mtc::span<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -743,7 +743,7 @@ namespace queries {
     return entityId = uFound;
   }
 
-  Abstract& RichQueryAny::GetChunks( uint32_t udocid, const Slice<const RankerTag>& format )
+  Abstract& RichQueryAny::GetChunks( uint32_t udocid, const mtc::span<const RankerTag>& format )
   {
     if ( abstract.dwMode != abstract.Rich )
     {
@@ -820,7 +820,7 @@ namespace queries {
 
   // RichQueryCover implementation
 
-  Abstract& RichQueryCover::GetChunks( uint32_t id, const Slice<const RankerTag>& ft )
+  Abstract& RichQueryCover::GetChunks( uint32_t id, const mtc::span<const RankerTag>& ft )
   {
     if ( id == entityId && abstract.dwMode != abstract.Rich )
     {
@@ -852,7 +852,7 @@ namespace queries {
 
   // RichQueryMatch implementation
 
-  Abstract& RichQueryMatch::GetChunks( uint32_t id, const Slice<const RankerTag>& ft )
+  Abstract& RichQueryMatch::GetChunks( uint32_t id, const mtc::span<const RankerTag>& ft )
   {
     if ( id == entityId && abstract.dwMode != abstract.Rich )
     {
@@ -1047,7 +1047,7 @@ namespace queries {
 
   // request terms for the word
     for ( auto& lexeme: lexemes )
-      if ( (pkblock = index->GetKeyBlock( lexeme )) != nullptr )
+      if ( (pkblock = index->GetKeyBlock( { lexeme.data(), lexeme.size() } )) != nullptr )
         ablocks.emplace_back( pkblock, TermRanker( sets.fieldSet, lexeme, fWeight, false ) );
 
   // if nothing found, return nullptr
@@ -1066,7 +1066,8 @@ namespace queries {
     auto  ablocks = std::vector<std::pair<mtc::api<IEntities>, TermRanker>>();
     auto  fWeight = GetTermIdf( widechar('{') + str + widechar('}') );
     auto  pkblock = mtc::api<IEntities>();
-    auto  keyList = index->ListContents( context::Key( 0xff, codepages::strtolower( str ) ) );
+    auto  wildKey = context::Key( 0xff, codepages::strtolower( str ) );
+    auto  keyList = index->ListContents( { wildKey.data(), wildKey.size() } );
 
     // check for statistics is present
     if ( fWeight <= 0.01 )    // check if placeholder
@@ -1074,7 +1075,7 @@ namespace queries {
 
     // create cooblocks
     for ( auto& next: lexemes )
-      if ( (pkblock = index->GetKeyBlock( next )) != nullptr )
+      if ( (pkblock = index->GetKeyBlock( { next.data(), next.size() } )) != nullptr )
         ablocks.emplace_back( pkblock, TermRanker( sets.fieldSet, next, GetTermIdf( next ), true ) );
 
     // enrich lexemes with index terms
@@ -1109,7 +1110,7 @@ namespace queries {
 
   auto  RichBuilder::GetTermIdf( const context::Key& key ) const -> double
   {
-    auto  kstats = index->GetKeyStats( key );
+    auto  kstats = index->GetKeyStats( { key.data(), key.size() } );
 
     if ( kstats.nCount == 0 || kstats.nCount > total )
       return -1.0;

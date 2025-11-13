@@ -15,7 +15,7 @@ namespace queries {
   auto  UnpackEntries(
     Abstract::EntrySet* output,
     Abstract::EntryPos* appPtr,
-    size_t              maxLen, const StrView& source, const RankEntry& ranker, unsigned id ) -> unsigned
+    size_t              maxLen, const std::string_view& source, const RankEntry& ranker, unsigned id ) -> unsigned
   {
     auto  srcPtr( source.data() );
     auto  srcEnd( source.data() + source.size() );
@@ -44,7 +44,7 @@ namespace queries {
   template <class GetFormId, size_t N, size_t M, class RankEntry>
   auto  UnpackEntries(
     Abstract::EntrySet (&output)[N],
-    Abstract::EntryPos (&appear)[M], const StrView& source, const RankEntry& ranker, unsigned id ) -> unsigned
+    Abstract::EntryPos (&appear)[M], const std::string_view& source, const RankEntry& ranker, unsigned id ) -> unsigned
   {
     auto  outPtr( output );
     auto  outEnd( output + std::min( N, M ) );

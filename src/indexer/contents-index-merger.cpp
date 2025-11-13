@@ -221,15 +221,10 @@ namespace fusion {
         if ( bundleStm != nullptr && (bundlePtr = iterators[iFresh]->GetBundle()) != nullptr )
           bundlePos = bundleStm->Put( bundlePtr->GetPtr(), bundlePtr->GetLen() );
 
-        if ( bundlePos == -1 )
-        {
-          int i = 0;
-        }
-
         if ( Entity( std::allocator<char>() )
           .SetId( iterators[iFresh].Curr() )
           .SetIndex( entityId )
-          .SetExtra( iterators[iFresh]->GetExtra() )
+          .SetExtra( make_view( iterators[iFresh]->GetExtra() ) )
           .SetPackPos( bundlePos )
           .SetVersion( iterators[iFresh]->GetVersion() ).Serialize( entityStm.ptr() ) == nullptr )
         {

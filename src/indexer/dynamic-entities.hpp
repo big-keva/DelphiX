@@ -65,7 +65,7 @@ namespace dynamic {
       auto  SetIndex( uint32_t ) -> Entity&;
       auto  SetOwner( Iface* ) -> Entity&;
       auto  SetStore( IStorage::IDumpStore* ) -> Entity&;
-      auto  SetExtra( const StrView& ) -> Entity&;
+      auto  SetExtra( const std::string_view& ) -> Entity&;
       auto  SetPackPos( int64_t ) -> Entity&;
       auto  SetVersion( uint64_t ) -> Entity&;
 
@@ -105,15 +105,15 @@ namespace dynamic {
    */
     auto  GetEntity( uint32_t id ) -> mtc::api<Entity>  {  return getEntity( *this, id );  }
     auto  GetEntity( uint32_t id ) const -> mtc::api<const Entity>  {  return getEntity( *this, id );  }
-    auto  GetEntity( const StrView& id ) -> mtc::api<Entity>  {  return getEntity( *this, id );  }
-    auto  GetEntity( const StrView& id ) const -> mtc::api<const Entity>  {  return getEntity( *this, id );  }
+    auto  GetEntity( const std::string_view& id ) -> mtc::api<Entity>  {  return getEntity( *this, id );  }
+    auto  GetEntity( const std::string_view& id ) const -> mtc::api<const Entity>  {  return getEntity( *this, id );  }
 
   /*
    *  ::DelEntity( StrView )
    *  Delete entity by entity id.
    *  Returns false if not found.
    */
-    auto  DelEntity( const StrView& ) -> uint32_t;
+    auto  DelEntity( const std::string_view& ) -> uint32_t;
 
   /*
    *  ::SetEntity( StrView, uint32_t* deleted )
@@ -122,12 +122,12 @@ namespace dynamic {
    *
    *  Throws index_overflow if more than accepted count of documents.
    */
-    auto  SetEntity( const StrView&, const StrView& = {}, uint32_t* = nullptr ) -> mtc::api<Entity>;
-    auto  SetExtras( const StrView&, const StrView& = {} ) -> mtc::api<Entity>;
+    auto  SetEntity( const std::string_view&, const std::string_view& = {}, uint32_t* = nullptr ) -> mtc::api<Entity>;
+    auto  SetExtras( const std::string_view&, const std::string_view& = {} ) -> mtc::api<Entity>;
 
   public:      // iterator access
     auto  GetIterator( uint32_t ) const -> Iterator;
-    auto  GetIterator( const StrView& ) const -> Iterator;
+    auto  GetIterator( const std::string_view& ) const -> Iterator;
 
   public:       // serialization
     template <class O>
@@ -150,7 +150,7 @@ namespace dynamic {
     template <class S>
     static  auto  getEntity( S&, uint32_t ) -> mtc::api<EntityOf<S>>;
     template <class S>
-    static  auto  getEntity( S&, const StrView& ) -> mtc::api<EntityOf<S>>;
+    static  auto  getEntity( S&, const std::string_view& ) -> mtc::api<EntityOf<S>>;
 
   protected:
     using EntityHolder = typename std::aligned_storage<sizeof(Entity), alignof(Entity)>::type;
@@ -220,7 +220,7 @@ namespace dynamic {
     {  return docStore = ps, *this;  }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::Entity::SetExtra( const StrView& xtra ) -> Entity&
+  auto  EntityTable<Allocator>::Entity::SetExtra( const std::string_view& xtra ) -> Entity&
     {  return extra.insert( extra.end(), xtra.begin(), xtra.end() ), *this;  }
 
   template <class Allocator>
@@ -270,7 +270,7 @@ namespace dynamic {
   *  if found. Returns false if document is not found.
   */
   template <class Allocator>
-  auto  EntityTable<Allocator>::DelEntity( const StrView& id ) -> uint32_t
+  auto  EntityTable<Allocator>::DelEntity( const std::string_view& id ) -> uint32_t
   {
     auto  hindex = std::hash<std::string_view>{}( { id.data(), id.size() } ) % entTable.size();
     auto* hentry = &entTable[hindex];
@@ -283,7 +283,7 @@ namespace dynamic {
 
     // search existing documents with same document id and remove
     for ( auto bfirst = true; hvalue != nullptr; hvalue = mtc::ptr::clean( hentry->load() ) )
-      if ( StrView( hvalue->id ) == id )
+      if ( hvalue->id == id )
       {
         if ( bfirst ) hentry->store( mtc::ptr::dirty( hvalue->collision.load() ) );
           else hentry->store( hvalue->collision.load() );
@@ -303,7 +303,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::SetEntity( const StrView& id, const StrView& xtras, uint32_t* deleted ) -> mtc::api<Entity>
+  auto  EntityTable<Allocator>::SetEntity( const std::string_view& id, const std::string_view& xtras, uint32_t* deleted ) -> mtc::api<Entity>
   {
     auto  hindex = std::hash<std::string_view>{}( { id.data(), id.size() } ) % entTable.size();
     auto* hentry = &entTable[hindex];
@@ -345,7 +345,7 @@ namespace dynamic {
 
   // search existing documents with same document id and remove
     for ( auto bfirst = true; hvalue != nullptr; hvalue = mtc::ptr::clean( hentry->load() ) )
-      if ( StrView( hvalue->id ) == id )
+      if ( hvalue->id == id )
       {
       // check algorithm consistency
         if ( hvalue->index == uint32_t(-1) )
@@ -377,7 +377,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::SetExtras( const StrView& id, const StrView& xtras ) -> mtc::api<Entity>
+  auto  EntityTable<Allocator>::SetExtras( const std::string_view& id, const std::string_view& xtras ) -> mtc::api<Entity>
   {
     auto  hindex = std::hash<std::string_view>{}( { id.data(), id.size() } ) % entTable.size();
     auto& hentry = entTable[hindex];
@@ -391,7 +391,7 @@ namespace dynamic {
       hvalue = mtc::ptr::clean( hvalue );
 
   // search existing entity with specified id
-    while ( hvalue != nullptr && StrView( hvalue->id ) != id )
+    while ( hvalue != nullptr && hvalue->id != id )
       hvalue = mtc::ptr::clean( hvalue->collision.load() );
 
   // check if not found
@@ -435,13 +435,13 @@ namespace dynamic {
 
   template <class Allocator>
   template <class S>
-  auto  EntityTable<Allocator>::getEntity( S& self, const StrView& id ) -> mtc::api<EntityOf<S>>
+  auto  EntityTable<Allocator>::getEntity( S& self, const std::string_view& id ) -> mtc::api<EntityOf<S>>
   {
     auto  hindex = std::hash<std::string_view>{}( { id.data(), id.size() } ) % self.entTable.size();
     auto  docptr = mtc::ptr::clean( self.entTable[hindex].load() );
 
     // search matching document
-    while ( docptr != nullptr && StrView( docptr->id ) != id )
+    while ( docptr != nullptr && docptr->id != id )
       docptr = mtc::ptr::clean( docptr->collision.load() );
 
     // if found, lock and check if not deleted
@@ -461,13 +461,13 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  auto  EntityTable<Allocator>::GetIterator( const StrView& id ) const -> Iterator
+  auto  EntityTable<Allocator>::GetIterator( const std::string_view& id ) const -> Iterator
   {
     auto  minone = (const Entity*)nullptr;
 
   // locate minimal entity with id >= passed one
     for ( auto beg = &getEntity( 1 ), end = (const Entity*)ptrStore.load(); beg != end; ++beg )
-      if ( beg->index != uint32_t(-1) && StrView( beg->id ) >= id )
+      if ( beg->index != uint32_t(-1) && beg->id >= id )
         if ( minone == nullptr || beg->id < minone->id )
           minone = beg;
 

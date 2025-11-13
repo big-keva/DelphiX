@@ -1,5 +1,4 @@
 # include "../../contents.hpp"
-# include "../../slices.hpp"
 # include "../../primes.hpp"
 # include "../../compat.hpp"
 # include <mtc/ptrpatch.h>
@@ -26,21 +25,21 @@ namespace indexer {
    ~PatchTable();
 
   public:
-    auto  Update( const StrView& id, uint32_t ix, const StrView& md ) -> mtc::api<const mtc::IByteBuffer>;
-    void  Delete( const StrView& id, uint32_t ix );
-    auto  Search( const StrView& ) const -> mtc::api<const mtc::IByteBuffer>;
+    auto  Update( const std::string_view& id, uint32_t ix, const std::string_view& md ) -> mtc::api<const mtc::IByteBuffer>;
+    void  Delete( const std::string_view& id, uint32_t ix );
+    auto  Search( const std::string_view& ) const -> mtc::api<const mtc::IByteBuffer>;
     auto  Search( uint32_t ix ) const -> mtc::api<const mtc::IByteBuffer>
       {  return Search( MakeId( ix ) );  }
 
     void  Commit( mtc::api<IStorage::ISerialized> );
 
   protected:
-    auto  Modify( const StrView&, const mtc::api<const mtc::IByteBuffer>& ) -> mtc::api<const mtc::IByteBuffer>;
+    auto  Modify( const std::string_view&, const mtc::api<const mtc::IByteBuffer>& ) -> mtc::api<const mtc::IByteBuffer>;
 
   protected:
-    static  auto  MakeId( uint32_t ix ) -> StrView;
-    static  auto  HashId( const StrView& ) -> size_t;
-    static  bool  IsUint( const StrView& );
+    static  auto  MakeId( uint32_t ix ) -> std::string_view;
+    static  auto  HashId( const std::string_view& ) -> size_t;
+    static  bool  IsUint( const std::string_view& );
 
   protected:
     std::atomic_long                      modifiers = 0;
@@ -59,12 +58,12 @@ namespace indexer {
     constexpr static deleted_t deleted{};
 
   protected:
-    PatchVal( const StrView&, Allocator );
+    PatchVal( const std::string_view&, Allocator );
     PatchVal( const deleted_t&, Allocator );
 
   public:
     static
-    auto  Create( const StrView&, Allocator ) -> mtc::api<const IByteBuffer>;
+    auto  Create( const std::string_view&, Allocator ) -> mtc::api<const IByteBuffer>;
     static
     auto  Create( const deleted_t&, Allocator ) -> mtc::api<const IByteBuffer>;
 
@@ -94,7 +93,7 @@ namespace indexer {
     friend class PatchTable;
 
   public:
-    PatchRec( PatchRec* ptr, const StrView& key, const mtc::IByteBuffer* val, long ver ):
+    PatchRec( PatchRec* ptr, const std::string_view& key, const mtc::IByteBuffer* val, long ver ):
       collision( ptr ),
       entityKey( key ),
       patchData( val ),
@@ -106,15 +105,15 @@ namespace indexer {
 
   public:
     // collision resolving comparison
-    bool  operator == ( const StrView& to ) const;
-    bool  operator != ( const StrView& to ) const  {  return !(*this == to);  }
+    bool  operator == ( const std::string_view& to ) const;
+    bool  operator != ( const std::string_view& to ) const  {  return !(*this == to);  }
 
     // helper func
     auto  Modify( mtc::api<const mtc::IByteBuffer> ) -> mtc::api<const mtc::IByteBuffer>;
 
   protected:
     std::atomic<PatchRec*>                collision = nullptr;
-    StrView                                  entityKey = { nullptr, 0 };
+    std::string_view                      entityKey = { nullptr, 0 };
     std::atomic<const mtc::IByteBuffer*>  patchData = nullptr;
     std::atomic_long                      patchTime = 0;
 
@@ -123,7 +122,7 @@ namespace indexer {
   // PatchVal implementation
 
   template <class Allocator>
-  PatchTable<Allocator>::PatchVal::PatchVal( const StrView& data, Allocator mman ):
+  PatchTable<Allocator>::PatchVal::PatchVal( const std::string_view& data, Allocator mman ):
     memman( mman ),
     length( data.size() )
   {
@@ -138,7 +137,7 @@ namespace indexer {
   }
 
   template <class Allocator>
-  auto  PatchTable<Allocator>::PatchVal::Create( const StrView& data, Allocator mman ) -> mtc::api<const mtc::IByteBuffer>
+  auto  PatchTable<Allocator>::PatchVal::Create( const std::string_view& data, Allocator mman ) -> mtc::api<const mtc::IByteBuffer>
   {
     auto  nalloc = (sizeof(PatchVal) * 2 + data.size() - 1) / sizeof(PatchVal);
     auto  palloc = new( AllocatorCast<Allocator, PatchVal>( mman ).allocate( nalloc ) )
@@ -171,7 +170,7 @@ namespace indexer {
   // PatchTable::PatchRec implementation
 
   template <class Allocator>
-  bool  PatchTable<Allocator>::PatchRec::operator == ( const StrView& to ) const
+  bool  PatchTable<Allocator>::PatchRec::operator == ( const std::string_view& to ) const
   {
     if ( entityKey.data() == to.data() )
       return true;
@@ -253,7 +252,7 @@ namespace indexer {
   * Creates a metadata update record with no override for 'deleted'
   */
   template <class Allocator>
-  auto  PatchTable<Allocator>::Modify( const StrView& key, const mtc::api<const mtc::IByteBuffer>& pvalue ) -> mtc::api<const mtc::IByteBuffer>
+  auto  PatchTable<Allocator>::Modify( const std::string_view& key, const mtc::api<const mtc::IByteBuffer>& pvalue ) -> mtc::api<const mtc::IByteBuffer>
   {
     auto& rentry = hashTable[HashId( key ) % hashTable.size()];
     auto  pentry = mtc::ptr::clean( rentry.load() );
@@ -291,7 +290,7 @@ namespace indexer {
   }
 
   template <class Allocator>
-  auto  PatchTable<Allocator>::Update( const StrView& id, uint32_t ix, const StrView& md ) -> mtc::api<const mtc::IByteBuffer>
+  auto  PatchTable<Allocator>::Update( const std::string_view& id, uint32_t ix, const std::string_view& md ) -> mtc::api<const mtc::IByteBuffer>
   {
     auto  value = PatchVal::Create( md, hashTable.get_allocator() );
       Modify( id, value );
@@ -300,7 +299,7 @@ namespace indexer {
   }
 
   template <class Allocator>
-  void  PatchTable<Allocator>::Delete( const StrView& id, uint32_t ix )
+  void  PatchTable<Allocator>::Delete( const std::string_view& id, uint32_t ix )
   {
     auto  value = PatchVal::Create( PatchVal::deleted, hashTable.get_allocator() );
       Modify( id,           value );
@@ -309,7 +308,7 @@ namespace indexer {
   }
 
   template <class Allocator>
-  auto  PatchTable<Allocator>::Search( const StrView& key ) const -> mtc::api<const mtc::IByteBuffer>
+  auto  PatchTable<Allocator>::Search( const std::string_view& key ) const -> mtc::api<const mtc::IByteBuffer>
   {
     auto& rentry = hashTable[HashId( key ) % hashTable.size()];
     auto  pentry = mtc::ptr::clean( rentry.load() );
@@ -371,7 +370,7 @@ namespace indexer {
   }
 
   template <class Allocator>
-  auto  PatchTable<Allocator>::HashId( const StrView& key ) -> size_t
+  auto  PatchTable<Allocator>::HashId( const std::string_view& key ) -> size_t
   {
     static_assert( sizeof(uintptr_t) > sizeof(uint32_t),
       "this code is designed for at least 64-bit pointers" );
@@ -383,17 +382,17 @@ namespace indexer {
   }
 
   template <class Allocator>
-  bool  PatchTable<Allocator>::IsUint( const StrView& key )
+  bool  PatchTable<Allocator>::IsUint( const std::string_view& key )
   {
     return (uintptr_t(key.data()) >> 32) == uint32_t(-1);
   }
 
   template <class Allocator>
-  auto  PatchTable<Allocator>::MakeId( uint32_t ix ) -> StrView
+  auto  PatchTable<Allocator>::MakeId( uint32_t ix ) -> std::string_view
   {
     static_assert( sizeof(uintptr_t) > sizeof(uint32_t),
       "this code is designed for at least 64-bit pointers" );
-    return StrView( (const char*)(0xffffffff00000000LU | ix), 0 );
+    return std::string_view( (const char*)(0xffffffff00000000LU | ix), 0 );
   }
 
 }}

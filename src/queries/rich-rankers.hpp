@@ -25,7 +25,7 @@ namespace queries {
 
   // rank
     double  operator()( unsigned tag, uint8_t fid ) const;
-    auto    GetRanker( const Slice<const textAPI::RankerTag>& ) const -> RichRanker;
+    auto    GetRanker( const mtc::span<const context::RankerTag>& ) const -> RichRanker;
   };
 
   class RichRanker
@@ -33,11 +33,11 @@ namespace queries {
     friend class TermRanker;
 
     const TermRanker&                 ranker;
-    mutable const textAPI::RankerTag* fmttop;
-    mutable const textAPI::RankerTag* fmtend;
+    mutable const context::RankerTag* fmttop;
+    mutable const context::RankerTag* fmtend;
 
   protected:
-    RichRanker( const TermRanker& r, const Slice<const textAPI::RankerTag>& f ):
+    RichRanker( const TermRanker& r, const mtc::span<const context::RankerTag>& f ):
       ranker( r ),
       fmttop( f.data() ),
       fmtend( f.data() + f.size() ) {}
@@ -93,7 +93,7 @@ namespace queries {
     return 0.2;
   }
 
-  inline  auto  TermRanker::GetRanker( const Slice<const textAPI::RankerTag>& fmt ) const -> RichRanker
+  inline  auto  TermRanker::GetRanker( const mtc::span<const context::RankerTag>& fmt ) const -> RichRanker
   {
     return { *this, fmt };
   }

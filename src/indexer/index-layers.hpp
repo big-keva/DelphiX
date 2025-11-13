@@ -34,13 +34,13 @@ namespace indexer {
     auto  getEntity( EntityId ) const -> mtc::api<const IEntity>;
     auto  getEntity( uint32_t ) const -> mtc::api<const IEntity>;
     bool  delEntity( EntityId id );
-    auto  setExtras( EntityId, const StrView& ) -> mtc::api<const IEntity>;
+    auto  setExtras( EntityId, const std::string_view& ) -> mtc::api<const IEntity>;
 
     auto  getMaxIndex() const -> uint32_t;
-    auto  getKeyBlock( const StrView&, const mtc::Iface* = nullptr ) const -> mtc::api<IContentsIndex::IEntities>;
-    auto  getKeyStats( const StrView& ) const -> IContentsIndex::BlockInfo;
+    auto  getKeyBlock( const std::string_view&, const mtc::Iface* = nullptr ) const -> mtc::api<IContentsIndex::IEntities>;
+    auto  getKeyStats( const std::string_view& ) const -> IContentsIndex::BlockInfo;
 
-    auto  listContents( const StrView&, const mtc::Iface* = nullptr ) -> mtc::api<IContentsIndex::IContentsList>;
+    auto  listContents( const std::string_view&, const mtc::Iface* = nullptr ) -> mtc::api<IContentsIndex::IContentsList>;
 
     void  addContents( mtc::api<IContentsIndex> pindex );
 

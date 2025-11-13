@@ -35,17 +35,17 @@ namespace dynamic {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override;
     auto  SetExtras( EntityId,
-      const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override  {  return entities.GetEntityCount();  }
-    auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
-    auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
+    auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> override;
+    auto  GetKeyStats( const std::string_view& ) const -> BlockInfo override;
 
     auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override;
     auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override;
-    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
+    auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override  {  return this;  }
@@ -77,7 +77,7 @@ namespace dynamic {
     auto  ptr() const -> IIndexAPI* {  return (IIndexAPI*)this;  }
 
   public:
-    void  Insert( const StrView& key, const StrView& value, unsigned bkType ) override
+    void  Insert( const std::string_view& key, const std::string_view& value, unsigned bkType ) override
       {  return contents.Insert( key, entityId, value, bkType );  }
 
   };
@@ -135,7 +135,7 @@ namespace dynamic {
     implement_lifetime_control
 
   public:
-    ContentsList( ContentsIndex* ix, const StrView& tp ):
+    ContentsList( ContentsIndex* ix, const std::string_view& tp ):
       contents( ix ),
       iterator( contents->contents.KeySet( tp ) ) {}
 
@@ -178,7 +178,7 @@ namespace dynamic {
   }
 
   auto  ContentsIndex::SetEntity( EntityId id, mtc::api<const IContents> keys,
-    const StrView& xtra, const StrView& beef ) -> mtc::api<const IEntity>
+    const std::string_view& xtra, const std::string_view& beef ) -> mtc::api<const IEntity>
   {
     auto  entity = mtc::api<EntTable::Entity>();
     auto  bodies = pStorage != nullptr ? pStorage->Packages() : nullptr;
@@ -208,12 +208,12 @@ namespace dynamic {
     return Override::Entity( entity.ptr() ).Bundle( bodies, entity->GetPackPos() );
   }
 
-  auto  ContentsIndex::SetExtras( EntityId id, const StrView& extras ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetExtras( EntityId id, const std::string_view& extras ) -> mtc::api<const IEntity>
   {
     return entities.SetExtras( id, extras ).ptr();
   }
 
-  auto  ContentsIndex::GetKeyBlock( const StrView& key ) const -> mtc::api<IEntities>
+  auto  ContentsIndex::GetKeyBlock( const std::string_view& key ) const -> mtc::api<IEntities>
   {
     auto  pchain = contents.Lookup( { key.data(), key.size() } );
 
@@ -221,7 +221,7 @@ namespace dynamic {
       new Entities( pchain, this ) : nullptr;
   }
 
-  auto  ContentsIndex::GetKeyStats( const StrView& key ) const -> BlockInfo
+  auto  ContentsIndex::GetKeyStats( const std::string_view& key ) const -> BlockInfo
   {
     auto  pchain = contents.Lookup( { key.data(), key.size() } );
 
@@ -240,7 +240,7 @@ namespace dynamic {
     return new EntitiesList( entities.GetIterator( ix ), this );
   }
 
-  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  auto  ContentsIndex::ListContents( const std::string_view& key ) -> mtc::api<IContentsList>
   {
     return new ContentsList( this, key );
   }

@@ -34,18 +34,18 @@ namespace layered {
 
     bool  DelEntity( EntityId ) override;
     auto  SetEntity( EntityId, mtc::api<const IContents>,
-      const StrView&, const StrView& ) -> mtc::api<const IEntity> override;
-    auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override;
+      const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override;
+    auto  SetExtras( EntityId, const std::string_view& ) -> mtc::api<const IEntity> override;
 
     auto  GetMaxIndex() const -> uint32_t override;
-    auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override;
-    auto  GetKeyStats( const StrView& ) const -> BlockInfo override;
+    auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> override;
+    auto  GetKeyStats( const std::string_view& ) const -> BlockInfo override;
 
     auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
     auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
       {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-    auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override;
+    auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override;
 
     auto  Commit() -> mtc::api<IStorage::ISerialized> override;
     auto  Reduce() -> mtc::api<IContentsIndex> override {  return this;  }
@@ -156,7 +156,7 @@ namespace layered {
   }
 
   auto  ContentsIndex::SetEntity( EntityId id, mtc::api<const IContents> contents,
-    const StrView& xtra, const StrView& beef ) -> mtc::api<const IEntity>
+    const std::string_view& xtra, const std::string_view& beef ) -> mtc::api<const IEntity>
   {
     if ( layers.empty() )
       throw std::logic_error( "index flakes are not initialized" );
@@ -205,7 +205,7 @@ namespace layered {
     }
   }
 
-  auto  ContentsIndex::SetExtras( EntityId id, const StrView& extras ) -> mtc::api<const IEntity>
+  auto  ContentsIndex::SetExtras( EntityId id, const std::string_view& extras ) -> mtc::api<const IEntity>
   {
     auto  shlock = mtc::make_shared_lock( ixlock );
     return setExtras( id, extras );
@@ -229,19 +229,19 @@ namespace layered {
     return getMaxIndex();
   }
 
-  auto  ContentsIndex::GetKeyBlock( const StrView& key ) const -> mtc::api<IEntities>
+  auto  ContentsIndex::GetKeyBlock( const std::string_view& key ) const -> mtc::api<IEntities>
   {
     return mtc::interlocked( mtc::make_shared_lock( ixlock ), [&]()
       {  return getKeyBlock( key, this );  } );
   }
 
-  auto  ContentsIndex::GetKeyStats( const StrView& key ) const -> BlockInfo
+  auto  ContentsIndex::GetKeyStats( const std::string_view& key ) const -> BlockInfo
   {
     return mtc::interlocked( mtc::make_shared_lock( ixlock ), [&]()
       {  return getKeyStats( key );  } );
   }
 
-  auto  ContentsIndex::ListContents( const StrView& key ) -> mtc::api<IContentsList>
+  auto  ContentsIndex::ListContents( const std::string_view& key ) -> mtc::api<IContentsList>
   {
     return listContents( key, MakeObjectHolder( mtc::api( (const Iface*)this ),
       std::move( mtc::make_shared_lock( ixlock ) ) ) );

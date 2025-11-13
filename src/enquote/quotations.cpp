@@ -6,6 +6,8 @@
 namespace DelphiX {
 namespace enquote {
 
+  using IText = DeliriX::IText;
+
   class QuoteMachine::common_settings
   {
     friend class quoter_function;
@@ -20,8 +22,8 @@ namespace enquote {
 
   class QuoteMachine::quoter_function
   {
-    using TextToken = textAPI::TextToken;
-    using MarkupTag = textAPI::MarkupTag;
+    using TextToken = context::TextToken;
+    using MarkupTag = DeliriX::MarkupTag;
 
     using Abstract = queries::Abstract;
     using EntrySet = Abstract::EntrySet;
@@ -40,19 +42,19 @@ namespace enquote {
     using Limits = std::vector<Span>;
 
     std::shared_ptr<common_settings>  common;
-    Slice<const TextToken>            xwords;
-    Slice<const MarkupTag>            markup;
+    mtc::span<const TextToken>        xwords;
+    mtc::span<const MarkupTag>        markup;
     Abstract::Entries                 quotes;
 
   public:
     quoter_function(
       const std::shared_ptr<common_settings>& coset,
-      const Slice<const TextToken>&           words,
-      const Slice<const MarkupTag>&           mkups,
+      const mtc::span<const TextToken>&       words,
+      const mtc::span<const MarkupTag>&       mkups,
       const Abstract::Entries&                quote );
 
-    void  GetQuotes( textAPI::IText* ) const;
-    void  GetSource( textAPI::IText* ) const;
+    void  GetQuotes( IText* ) const;
+    void  GetSource( IText* ) const;
 
   protected:
     void  addQuotes(
@@ -81,37 +83,37 @@ namespace enquote {
       const FieldOptions& fdinfo,
       const MarkupTag*    format ) const -> const MarkupTag*;
     void  getQuotes(
-      textAPI::IText*   output,
+      IText*            output,
       const MarkupTag*& fmtbeg,
       const MarkupTag*  fmtend,
       const Span*&      limbeg,
       const Span*       limend,
       const EntrySet*&  quobeg ) const;
     void  getQuotes(
-      textAPI::IText*   output,
+      IText*            output,
       Span              limits,
       const EntrySet*&  quobeg ) const;
     void  getSource(
-      textAPI::IText*   output,
+      IText*            output,
       const MarkupTag*  fmtbeg,
       Span              bounds ) const;
     auto  getFormat( const MarkupTag* ) const -> MarkupTag;
-    auto  loadField( const char* ) const -> const FieldOptions*;
+    auto  loadField( const std::string_view& ) const -> const FieldOptions*;
   };
 
   // QuoteMachine::quoter_function
 
   QuoteMachine::quoter_function::quoter_function(
     const std::shared_ptr<common_settings>& coset,
-    const Slice<const TextToken>&           words,
-    const Slice<const MarkupTag>&           mkups,
+    const mtc::span<const TextToken>&       words,
+    const mtc::span<const MarkupTag>&       mkups,
     const Abstract::Entries&                quote ):
       common( coset ),
       xwords( words ),
       markup( mkups ),
       quotes( quote ) {}
 
-  void  QuoteMachine::quoter_function::GetQuotes( textAPI::IText* output ) const
+  void  QuoteMachine::quoter_function::GetQuotes( IText* output ) const
   {
     auto  limits = getBounds();
     auto  fmtbeg = markup.begin();
@@ -121,7 +123,7 @@ namespace enquote {
     return (void)getQuotes( output, fmtbeg, markup.end(), limbeg, limits.data() + limits.size(), quobeg );
   }
 
-  void  QuoteMachine::quoter_function::GetSource( textAPI::IText* output ) const
+  void  QuoteMachine::quoter_function::GetSource( IText* output ) const
   {
     getSource( output, markup.begin(), { 0, unsigned(xwords.size() - 1) } );
   }
@@ -217,7 +219,7 @@ namespace enquote {
       while ( format != markup.end() && format->uUpper <= bounds.uUpper )
       {
         std::tie( format, quoptr ) = getBounds( output, { format->uLower, format->uUpper },
-          *loadField( format->format ), format + 1, quoptr );
+          *loadField( format->tagKey ), format + 1, quoptr );
       }
     }
 
@@ -242,7 +244,7 @@ namespace enquote {
     }
 
     while ( format != markup.end() )
-      format = getBounds( output, { format->uLower, format->uUpper }, *loadField( format->format ), format + 1 );
+      format = getBounds( output, { format->uLower, format->uUpper }, *loadField( format->tagKey ), format + 1 );
 
     return format;
   }
@@ -253,7 +255,7 @@ namespace enquote {
   }
 
   void  QuoteMachine::quoter_function::getQuotes(
-    textAPI::IText*   output,
+    IText*            output,
     const MarkupTag*& fmtbeg,
     const MarkupTag*  fmtend,
     const Span*&      limbeg,
@@ -271,7 +273,7 @@ namespace enquote {
       }
         else
       {
-        auto  addtag = output->AddTextTag( fmtbeg->format );
+        auto  addtag = output->AddMarkupTag( fmtbeg->tagKey );
 
         getQuotes( addtag, ++fmtbeg, fmtend,
           limbeg, limend, quobeg );
@@ -280,7 +282,7 @@ namespace enquote {
   }
 
   void  QuoteMachine::quoter_function::getQuotes(
-    textAPI::IText*   output,
+    IText*            output,
     Span              limits,
     const EntrySet*&  quobeg ) const
   {
@@ -309,7 +311,7 @@ namespace enquote {
         else
       if ( rfword.IsFirstOne() && !thestr.empty() )
       {
-        output->AddString( thestr );
+        output->AddBlock( thestr );
         thestr.clear();
       }
 
@@ -324,10 +326,10 @@ namespace enquote {
       thestr += widechar( 0x2026 );
 
     if ( !thestr.empty() )
-      output->AddString( thestr );
+      output->AddBlock( thestr );
   }
 
-  auto  QuoteMachine::quoter_function::loadField( const char* tag ) const -> const FieldOptions*
+  auto  QuoteMachine::quoter_function::loadField( const std::string_view& tag ) const -> const FieldOptions*
   {
     const FieldOptions* pfinfo;
 
@@ -341,7 +343,7 @@ namespace enquote {
   }
 
   void  QuoteMachine::quoter_function::getSource(
-    textAPI::IText*   output,
+    IText*            output,
     const MarkupTag*  fmtbeg,
     Span              bounds ) const
   {
@@ -384,7 +386,7 @@ namespace enquote {
           else
         if ( next.IsFirstOne() && !thestr.empty() )
         {
-          output->AddString( thestr );
+          output->AddBlock( thestr );
           thestr.clear();
         }
 
@@ -396,11 +398,11 @@ namespace enquote {
       }
 
       if ( !thestr.empty() )
-        output->AddString( thestr );
+        output->AddBlock( thestr );
 
       if ( bounds.uLower <= bounds.uUpper )
       {
-        getSource( output->AddTextTag( fmtbeg->format ), fmtbeg + 1,
+        getSource( output->AddMarkupTag( fmtbeg->tagKey ), fmtbeg + 1,
           { bounds.uLower, std::min( bounds.uUpper, fmtbeg->uUpper ) } );
         bounds.uLower = std::min( bounds.uUpper, fmtbeg->uUpper ) + 1;
       }
@@ -428,13 +430,13 @@ namespace enquote {
   auto  QuoteMachine::Structured() -> QuotesFunc
   {
     return [opts = settings](
-      textAPI::IText*           output,
-      const Slice<const char>&  imgsrc,
-      const Slice<const char>&  fmtsrc,
-      const queries::Abstract&  quotes )
+      IText*                        output,
+      const mtc::span<const char>&  imgsrc,
+      const mtc::span<const char>&  fmtsrc,
+      const queries::Abstract&      quotes )
     {
       auto  ximage = context::Image();
-      auto  addTag = [&]( const context::formats::FormatTag<unsigned>& tag )
+      auto  addTag = [&]( const context::formats::RankerTag& tag )
       {
         auto  pf = opts->fields.Get( tag.format );
 
@@ -453,13 +455,13 @@ namespace enquote {
   auto  QuoteMachine::TextSource() -> QuotesFunc
   {
     return [opts = settings](
-      textAPI::IText*           output,
-      const Slice<const char>&  imgsrc,
-      const Slice<const char>&  fmtsrc,
-      const queries::Abstract&  quotes )
+      IText*                        output,
+      const mtc::span<const char>&  imgsrc,
+      const mtc::span<const char>&  fmtsrc,
+      const queries::Abstract&      quotes )
     {
       auto  ximage = context::Image();
-      auto  addTag = [&]( const context::formats::FormatTag<unsigned>& tag )
+      auto  addTag = [&]( const context::formats::RankerTag& tag )
       {
         auto  pf = opts->fields.Get( tag.format );
 

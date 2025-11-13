@@ -92,15 +92,15 @@ namespace dynamic {
       auto  data() -> char* {  return (char*)(this + 1);  }
 
     public:
-      ChainHook( const StrView& key, unsigned blockType, ChainHook*, Allocator );
+      ChainHook( const std::string_view& key, unsigned blockType, ChainHook*, Allocator );
      ~ChainHook();
 
     public:
-      bool  operator == ( const StrView& s ) const
+      bool  operator == ( const std::string_view& s ) const
         {  return cchkey == s.size() && memcmp( data(), s.data(), s.size() ) == 0;  }
 
     public:
-      void  Insert( uint32_t entity, const StrView& block );
+      void  Insert( uint32_t entity, const std::string_view& block );
       void  Markup();
      /*
       * bool  Verify() const;
@@ -121,13 +121,13 @@ namespace dynamic {
     BlockChains( Allocator alloc = Allocator() );
    ~BlockChains();
 
-    void  Insert( const StrView& key, uint32_t entity, const StrView& block, unsigned bkType );
-    auto  Lookup( const StrView& key ) const -> const ChainHook*;
+    void  Insert( const std::string_view& key, uint32_t entity, const std::string_view& block, unsigned bkType );
+    auto  Lookup( const std::string_view& key ) const -> const ChainHook*;
     template <class OtherAllocator>
     auto  Remove( const Bitmap<OtherAllocator>& ) -> BlockChains&;
     auto  StopIt() -> BlockChains&;
 
-    auto  KeySet( const StrView& ) const -> KeyLister;
+    auto  KeySet( const std::string_view& ) const -> KeyLister;
 
    /*
     * bool  Verify() const;
@@ -228,7 +228,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  void  BlockChains<Allocator>::Insert( const StrView& key, uint32_t entity, const StrView& block, unsigned bkType )
+  void  BlockChains<Allocator>::Insert( const std::string_view& key, uint32_t entity, const std::string_view& block, unsigned bkType )
   {
     auto  hindex = std::hash<std::string_view>{}( { key.data(), key.size() } ) % hashTable.size();
     auto  hentry = &hashTable[hindex];
@@ -285,7 +285,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  auto  BlockChains<Allocator>::Lookup( const StrView& key ) const -> const ChainHook*
+  auto  BlockChains<Allocator>::Lookup( const std::string_view& key ) const -> const ChainHook*
   {
     auto  hindex = std::hash<std::string_view>{}( { key.data(), key.size() } ) % hashTable.size();
     auto  hvalue = mtc::ptr::clean( hashTable[hindex].load() );
@@ -314,7 +314,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  auto  BlockChains<Allocator>::KeySet( const StrView& key ) const -> KeyLister
+  auto  BlockChains<Allocator>::KeySet( const std::string_view& key ) const -> KeyLister
   {
     auto  templStr = std::string( key.begin(), key.end() );
     auto  templLen = size_t(0);
@@ -458,7 +458,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  BlockChains<Allocator>::ChainHook::ChainHook( const StrView& key, unsigned b, ChainHook* p, Allocator m ):
+  BlockChains<Allocator>::ChainHook::ChainHook( const std::string_view& key, unsigned b, ChainHook* p, Allocator m ):
     bkType( b ),
     malloc( m ),
     pchain( p )
@@ -478,7 +478,7 @@ namespace dynamic {
   }
 
   template <class Allocator>
-  void  BlockChains<Allocator>::ChainHook::Insert( uint32_t entity, const StrView& block )
+  void  BlockChains<Allocator>::ChainHook::Insert( uint32_t entity, const std::string_view& block )
   {
     auto          newptr = new( malloc.allocate( (sizeof(ChainLink) * 2 + block.size() - 1) / sizeof(ChainLink) ) )
       ChainLink( entity, block );
