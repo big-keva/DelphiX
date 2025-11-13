@@ -34,7 +34,7 @@ TestItEasy::RegisterFunc  static_entities( []()
 
       SECTION( "entities table may be created with default allocator" )
       {
-        static_::EntityTable<>  entities( serialized, nullptr, nullptr );
+        static_::EntityTable<>  entities( { serialized.data(), serialized.size() }, nullptr, nullptr );
 
         SECTION( "entities may be accessed by index" )
         {
@@ -88,7 +88,7 @@ TestItEasy::RegisterFunc  static_entities( []()
       {
         mtc::Arena  memArena;
         auto        entities = memArena.Create<static_::EntityTable<mtc::Arena::allocator<char>>>(
-          serialized, nullptr, nullptr );
+          std::string_view( serialized.data(), serialized.size() ), nullptr, nullptr );
 
         SECTION( "iterators are available" )
         {

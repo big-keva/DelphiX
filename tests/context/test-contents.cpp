@@ -5,7 +5,6 @@
 
 using namespace DelphiX;
 using namespace DelphiX::context;
-using namespace DelphiX::textAPI;
 
 auto  StrKey( const char* str ) -> Key
 {
@@ -15,9 +14,9 @@ auto  StrKey( const char* str ) -> Key
 TestItEasy::RegisterFunc  test_contents_processor( []()
 {
   auto  proc = Processor();
-  auto  text = Document();
+  auto  text = DeliriX::Text();
 
-  CopyUtf16( &text, Document{
+  CopyUtf16( &text, DeliriX::Text{
     { "title", {
         "Сказ про радугу",
         "/",
@@ -43,7 +42,7 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
         if ( REQUIRE_NOTHROW( contents = GetMiniContents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )
           {
-            REQUIRE_NOTHROW( contents->List( [&]( const StrView&, const StrView& value, unsigned bkType )
+            REQUIRE_NOTHROW( contents->List( [&]( const std::string_view&, const std::string_view& value, unsigned bkType )
               {
                 REQUIRE( bkType == 0 );
                 REQUIRE( value.size() == 0 );
@@ -57,7 +56,7 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
         if ( REQUIRE_NOTHROW( contents = GetBM25Contents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )
           {
-            REQUIRE_NOTHROW( contents->List( [&]( const StrView& key, const StrView& value, unsigned bkType )
+            REQUIRE_NOTHROW( contents->List( [&]( const std::string_view& key, const std::string_view& value, unsigned bkType )
               {
                 if ( REQUIRE( bkType == 10 ) && REQUIRE( value.size() != 0 ) )
                 {
@@ -79,7 +78,7 @@ TestItEasy::RegisterFunc  test_contents_processor( []()
         if ( REQUIRE_NOTHROW( contents = GetRichContents( body.GetLemmas(), body.GetMarkup(), fieldMan ) ) )
           if ( REQUIRE( contents != nullptr ) )
           {
-            REQUIRE_NOTHROW( contents->List( [&]( const StrView& key, const StrView& value, unsigned bkType )
+            REQUIRE_NOTHROW( contents->List( [&]( const std::string_view& key, const std::string_view& value, unsigned bkType )
               {
                 if ( bkType == 99 )
                   return;

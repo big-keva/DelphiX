@@ -1,9 +1,9 @@
 # if !defined( __DelphiX_contents_hpp__ )
 # define __DelphiX_contents_hpp__
-# include "slices.hpp"
 # include <mtc/iStream.h>
 # include <mtc/iBuffer.h>
 # include <functional>
+# include "mtc/span.hpp"
 
 namespace DelphiX
 {
@@ -11,13 +11,14 @@ namespace DelphiX
   struct IStorage;            // data collections interface
   struct IContents;           // indexable entity properties interface
 
-  class EntityId: public StrView, protected mtc::api<const mtc::Iface>
+  class EntityId: public std::string_view, protected mtc::api<const mtc::Iface>
   {
-    using StrView::StrView;
+    using std::string_view::string_view;
 
   public:
     EntityId( const EntityId& ) = default;
-    EntityId( const StrView& s, api i = nullptr ): StrView( s ), api( i ) {}
+    EntityId( const std::string_view& s, api i = nullptr ): std::string_view( s ), api( i ) {}
+    EntityId( const std::string& s, api i = nullptr ): std::string_view( s.data(), s.size() ), api( i ) {}
   };
 
   struct IEntity: mtc::Iface
@@ -123,15 +124,15 @@ namespace DelphiX
     */
     virtual auto  SetEntity( EntityId,
       mtc::api<const IContents> keys = {},
-      const StrView&            xtra = {},
-      const StrView&            beef = {} ) -> mtc::api<const IEntity> = 0;
+      const std::string_view&   xtra = {},
+      const std::string_view&   beef = {} ) -> mtc::api<const IEntity> = 0;
 
    /*
     * SetExtras()
     *
     * Changes the value of extras block for the entity identified by id
     */
-    virtual auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> = 0;
+    virtual auto  SetExtras( EntityId, const std::string_view& ) -> mtc::api<const IEntity> = 0;
 
     /*
     * Index statistics and service information
@@ -141,8 +142,8 @@ namespace DelphiX
    /*
     * Blocks search api
     */
-    virtual auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> = 0;
-    virtual auto  GetKeyStats( const StrView& ) const -> BlockInfo = 0;
+    virtual auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> = 0;
+    virtual auto  GetKeyStats( const std::string_view& ) const -> BlockInfo = 0;
 
    /*
     * Iterators
@@ -150,7 +151,7 @@ namespace DelphiX
     virtual auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> = 0;
     virtual auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> = 0;
 
-    virtual auto  ListContents( const StrView& = {} ) -> mtc::api<IContentsList> = 0;
+    virtual auto  ListContents( const std::string_view& = {} ) -> mtc::api<IContentsList> = 0;
    /*
     * Commit()
     *
@@ -190,15 +191,15 @@ namespace DelphiX
   */
   struct IContentsIndex::IIndexAPI
   {
-    virtual void  Insert( const StrView& key, const StrView& block, unsigned bkType ) = 0;
+    virtual void  Insert( const std::string_view& key, const std::string_view& block, unsigned bkType ) = 0;
   };
 
   struct IContentsIndex::IEntities: Iface
   {
     struct Reference
     {
-      uint32_t    uEntity;
-      StrView     details;
+      uint32_t          uEntity;
+      std::string_view  details;
     };
 
     virtual auto  Find( uint32_t ) -> Reference = 0;
@@ -227,8 +228,14 @@ namespace DelphiX
   struct IContents: mtc::Iface
   {
     virtual void  Enum( IContentsIndex::IIndexAPI* ) const = 0;
-            void  List( std::function<void(const StrView&, const StrView&, unsigned)> );
+            void  List( std::function<void(const std::string_view&, const std::string_view&, unsigned)> );
   };
+
+  inline
+  auto  make_view( const mtc::IByteBuffer* buffer ) -> std::string_view
+  {
+    return buffer != nullptr ? std::string_view( buffer->GetPtr(), buffer->GetLen() ) : std::string_view();
+  }
 
 }
 

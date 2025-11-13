@@ -1,15 +1,16 @@
 # include "../../context/pack-format.hpp"
-# include "../../text-api.hpp"
+# include "../../context/ranker-tag.hpp"
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
+using RankerTag = context::RankerTag;
 
 TestItEasy::RegisterFunc  test_tag_compressor( []()
 {
   TEST_CASE( "context/formats/compressor" )
   {
     auto  serialized = std::vector<char>();
-    auto  formatList = std::vector<textAPI::FormatTag<unsigned>>{
+    auto  formatList = std::vector<RankerTag>{
       { 0, 20, 28 },
       { 1, 22, 26 },
       { 2, 22, 23 },
@@ -23,8 +24,8 @@ TestItEasy::RegisterFunc  test_tag_compressor( []()
     }
     SECTION( "... and deserialized" )
     {
-      textAPI::FormatTag<unsigned>  tagset[0x20];
-      size_t                        ncount;
+      RankerTag tagset[0x20];
+      size_t    ncount;
 
       SECTION( "* to static array" )
       {
@@ -32,12 +33,12 @@ TestItEasy::RegisterFunc  test_tag_compressor( []()
 
         if ( REQUIRE( ncount == 6 ) )
         {
-          REQUIRE( tagset[0] == textAPI::FormatTag<unsigned>{ 0, 20, 28 } );
-          REQUIRE( tagset[1] == textAPI::FormatTag<unsigned>{ 1, 22, 26 } );
-          REQUIRE( tagset[2] == textAPI::FormatTag<unsigned>{ 2, 22, 23 } );
-          REQUIRE( tagset[3] == textAPI::FormatTag<unsigned>{ 2, 25, 26 } );
-          REQUIRE( tagset[4] == textAPI::FormatTag<unsigned>{ 1, 27, 28 } );
-          REQUIRE( tagset[5] == textAPI::FormatTag<unsigned>{ 0, 29, 30 } );
+          REQUIRE( tagset[0] == RankerTag{ 0, 20, 28 } );
+          REQUIRE( tagset[1] == RankerTag{ 1, 22, 26 } );
+          REQUIRE( tagset[2] == RankerTag{ 2, 22, 23 } );
+          REQUIRE( tagset[3] == RankerTag{ 2, 25, 26 } );
+          REQUIRE( tagset[4] == RankerTag{ 1, 27, 28 } );
+          REQUIRE( tagset[5] == RankerTag{ 0, 29, 30 } );
         }
       }
       SECTION( "* as dynamic array" )
@@ -46,12 +47,12 @@ TestItEasy::RegisterFunc  test_tag_compressor( []()
 
         if ( REQUIRE( decomp.size() == 6 ) )
         {
-          REQUIRE( tagset[0] == textAPI::FormatTag<unsigned>{ 0, 20, 28 } );
-          REQUIRE( tagset[1] == textAPI::FormatTag<unsigned>{ 1, 22, 26 } );
-          REQUIRE( tagset[2] == textAPI::FormatTag<unsigned>{ 2, 22, 23 } );
-          REQUIRE( tagset[3] == textAPI::FormatTag<unsigned>{ 2, 25, 26 } );
-          REQUIRE( tagset[4] == textAPI::FormatTag<unsigned>{ 1, 27, 28 } );
-          REQUIRE( tagset[5] == textAPI::FormatTag<unsigned>{ 0, 29, 30 } );
+          REQUIRE( tagset[0] == RankerTag{ 0, 20, 28 } );
+          REQUIRE( tagset[1] == RankerTag{ 1, 22, 26 } );
+          REQUIRE( tagset[2] == RankerTag{ 2, 22, 23 } );
+          REQUIRE( tagset[3] == RankerTag{ 2, 25, 26 } );
+          REQUIRE( tagset[4] == RankerTag{ 1, 27, 28 } );
+          REQUIRE( tagset[5] == RankerTag{ 0, 29, 30 } );
         }
       }
     }

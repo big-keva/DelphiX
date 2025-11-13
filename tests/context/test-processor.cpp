@@ -1,6 +1,6 @@
 # include "../../context/processor.hpp"
-# include "../../textAPI/DOM-dump.hpp"
 # include "../../compat.hpp"
+# include <DeliriX/DOM-dump.hpp>
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
@@ -25,11 +25,11 @@ class MockLang: public ILemmatizer
 
 class MockFields: public FieldHandler
 {
-  auto  Add( const StrView& ) -> FieldOptions* override
+  auto  Add( const std::string_view& ) -> FieldOptions* override
   {
     throw std::invalid_argument( "unexpected call @" __FILE__ ":" LINE_STRING );
   }
-  auto  Get( const StrView& name ) const -> const FieldOptions* override
+  auto  Get( const std::string_view& name ) const -> const FieldOptions* override
   {
     if ( name == "tag-1" )
       return &tag_1;
@@ -57,9 +57,9 @@ TestItEasy::RegisterFunc  test_processor( []()
     MockFields          mockFd;
     context::Processor  txProc;
     context::Image      txBody;
-    textAPI::Document   ucText;
+    DeliriX::Text       ucText;
 
-    CopyUtf16( &ucText, textAPI::Document{
+    CopyUtf16( &ucText, DeliriX::Text{
       "Первая строка текста: просто строка",
       "Вторая строка в новом абзаце",
       { "tag-1", {
@@ -70,7 +70,7 @@ TestItEasy::RegisterFunc  test_processor( []()
 
     SECTION( "it works only with utf16 texts" )
     {
-      REQUIRE_EXCEPTION( txProc.WordBreak( txBody, textAPI::Document{ "some string" } ),
+      REQUIRE_EXCEPTION( txProc.WordBreak( txBody, DeliriX::Text{ "some string" } ),
         std::invalid_argument );
     }
     SECTION( "utf-16 text may be tokenized" )
@@ -95,7 +95,7 @@ TestItEasy::RegisterFunc  test_processor( []()
     {
       auto  dump = std::string();
 
-      if ( REQUIRE_NOTHROW( txBody.Serialize( textAPI::dump_as::Tags( textAPI::dump_as::MakeOutput( &dump ) ).ptr() ) ) )
+      if ( REQUIRE_NOTHROW( txBody.Serialize( DeliriX::dump_as::Tags( DeliriX::dump_as::MakeOutput( &dump ) ).ptr() ) ) )
       {
         REQUIRE( dump ==
           "Первая\n"
@@ -109,15 +109,15 @@ TestItEasy::RegisterFunc  test_processor( []()
           "в\n"
           "новом\n"
           "абзаце\n"
-          "  <tag-1>\n"
-          "    Строка внутри тега\n"
-          "    <tag-2>\n"
-          "      Строка\n"
-          "      внутри\n"
-          "      вложенного\n"
-          "      тега\n"
-          "    </tag-2>\n"
-          "  </tag-1>\n"
+          "<tag-1>\n"
+          "  Строка внутри тега\n"
+          "  <tag-2>\n"
+          "    Строка\n"
+          "    внутри\n"
+          "    вложенного\n"
+          "    тега\n"
+          "  </tag-2>\n"
+          "</tag-1>\n"
           "Третья\n"
           "строка\n"
           ".\n" );

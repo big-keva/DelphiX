@@ -62,19 +62,19 @@ public:
     {  return new MockEntity( mtc::strprintf( "%u", ix ), ix );  }
   bool  DelEntity( EntityId ) override
     {  return false;  }
-  auto  SetEntity( EntityId id, mtc::api<const IContents>, const StrView&, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetEntity( EntityId id, mtc::api<const IContents>, const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override
     {  return new MockEntity( std::string( id ), 1 );  }
-  auto  SetExtras( EntityId id, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetExtras( EntityId id, const std::string_view& ) -> mtc::api<const IEntity> override
     {  return new MockEntity( std::string( id ), 1 );  }
   auto  GetMaxIndex() const -> uint32_t override
     {  return 1;  }
-  auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities> override
+  auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities> override
     {  return nullptr;  }
-  auto  GetKeyStats( const StrView& ) const -> BlockInfo override
+  auto  GetKeyStats( const std::string_view& ) const -> BlockInfo override
     {  return { uint32_t(-1), 0 };  }
   auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override NOT_IMPLEMENTED
   auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override NOT_IMPLEMENTED
-  auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override NOT_IMPLEMENTED
+  auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override NOT_IMPLEMENTED
   auto  Commit() -> mtc::api<IStorage::ISerialized> override
     {  return nullptr;  }
   auto  Reduce() -> mtc::api<IContentsIndex> override

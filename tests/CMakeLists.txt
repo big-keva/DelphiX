@@ -1,6 +1,6 @@
 set(COMMON_SRC toolbox/tmppath.cpp toolbox/dirtool.cpp test-main.cpp)
 
-link_libraries(DelphiX mtc moonycode)
+link_libraries(DelphiX DeliriX mtc moonycode)
 
 if(FALSE)
 	add_executable(test-DelphiX-enquote
@@ -19,10 +19,6 @@ if(FALSE)
 		queries/test-queries-parser.cpp
 		queries/test-rich-queries.cpp
 		queries/test-mini-queries.cpp
-		${COMMON_SRC})
-
-	add_executable(test-DelphiX-textAPI
-		textAPI/test-textAPI.cpp
 		${COMMON_SRC})
 
 	add_executable(test-DelphiX-storage
@@ -56,8 +52,6 @@ else()
 		queries/test-queries-parser.cpp
 		queries/test-rich-queries.cpp
 		queries/test-mini-queries.cpp
-
-		textAPI/test-textAPI.cpp
 
 		storage/test-storage-fs-based.cpp
 

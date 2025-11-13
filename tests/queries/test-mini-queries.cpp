@@ -3,11 +3,10 @@
 # include "../../queries/builder.hpp"
 # include "../../src/queries/field-set.hpp"
 # include "../../indexer/dynamic-contents.hpp"
-# include "../../textAPI/DOM-dump.hpp"
+# include <DeliriX/DOM-dump.hpp>
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
-using namespace DelphiX::textAPI;
 
 static  auto  _W( const char* s ) -> mtc::widestr
   {  return codepages::mbcstowide( codepages::codepage_utf8, s );  }
@@ -23,14 +22,14 @@ static  auto  MakeStats( const std::initializer_list<std::pair<const char*, doub
 
 static  context::FieldManager fieldMan;
 
-auto  CreateMiniIndex( const context::Processor& lp, const std::initializer_list<Document>& docs ) -> mtc::api<IContentsIndex>
+auto  CreateMiniIndex( const context::Processor& lp, const std::initializer_list<DeliriX::Text>& docs ) -> mtc::api<IContentsIndex>
 {
   auto  ct = indexer::dynamic::Index().Create();
   auto  id = 0;
 
   for ( auto& doc: docs )
   {
-    auto  ucText = Document();
+    auto  ucText = DeliriX::Text();
       CopyUtf16( &ucText, doc );
     auto  ucBody = context::Image();
 

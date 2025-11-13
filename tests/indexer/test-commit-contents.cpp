@@ -82,20 +82,20 @@ public:
     {  return ix == 3 ? &entity : nullptr;  }
   bool  DelEntity( EntityId )
     {  throw std::logic_error( "invalid call" );  }
-  auto  SetEntity( EntityId, mtc::api<const IContents>, const StrView&, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetEntity( EntityId, mtc::api<const IContents>, const std::string_view&, const std::string_view& ) -> mtc::api<const IEntity> override
     {  throw std::logic_error( "invalid call" );  }
-  auto  SetExtras( EntityId, const StrView& ) -> mtc::api<const IEntity> override
+  auto  SetExtras( EntityId, const std::string_view& ) -> mtc::api<const IEntity> override
     {  throw std::logic_error( "invalid call" );  }
   auto  GetMaxIndex() const -> uint32_t   {  return 1000;  }
-  auto  GetKeyBlock( const StrView& ) const -> mtc::api<IEntities>
+  auto  GetKeyBlock( const std::string_view& ) const -> mtc::api<IEntities>
     {  throw std::logic_error( "invalid call" );  }
-  auto  GetKeyStats( const StrView& ) const -> BlockInfo
+  auto  GetKeyStats( const std::string_view& ) const -> BlockInfo
     {  return { 0, 5 };  }
   auto  ListEntities( EntityId ) -> mtc::api<IEntitiesList> override
     {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
   auto  ListEntities( uint32_t ) -> mtc::api<IEntitiesList> override
     {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
-  auto  ListContents( const StrView& ) -> mtc::api<IContentsList> override
+  auto  ListContents( const std::string_view& ) -> mtc::api<IContentsList> override
     {  throw std::runtime_error( "not implemented @" __FILE__ ":" LINE_STRING );  }
   auto  Commit() -> mtc::api<IStorage::ISerialized>
     {

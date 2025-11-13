@@ -1,17 +1,16 @@
-# include "../../textAPI/DOM-text.hpp"
 # include "../../context/pack-images.hpp"
 # include "../../context/pack-format.hpp"
 # include "../../context/processor.hpp"
 # include "../../queries.hpp"
-# include "../../textAPI/DOM-dump.hpp"
 # include "../../enquote/quotations.hpp"
+# include <DeliriX/DOM-dump.hpp>
 # include <mtc/test-it-easy.hpp>
 
 using namespace DelphiX;
 
-auto  GetPackedImage( const textAPI::Document& doc, FieldHandler& fds ) -> std::pair<std::vector<char>, std::vector<char>>
+auto  GetPackedImage( const DeliriX::Text& doc, FieldHandler& fds ) -> std::pair<std::vector<char>, std::vector<char>>
 {
-  auto  ucText = textAPI::Document();
+  auto  ucText = DeliriX::Text();
   auto  txBody = context::BaseImage<std::allocator<char>>();
   auto  lgProc = context::Processor();
 
@@ -28,7 +27,7 @@ auto  GetPackedImage( const textAPI::Document& doc, FieldHandler& fds ) -> std::
 auto  GetUnpack( const std::pair<std::vector<char>, std::vector<char>>& image, const FieldHandler& fdhan ) -> context::Image
 {
   auto  ximage = context::Image();
-  auto  addTag = [&]( const context::formats::FormatTag<unsigned>& tag )
+  auto  addTag = [&]( const context::formats::RankerTag& tag )
     {
       auto  pf = fdhan.Get( tag.format );
 
@@ -51,14 +50,14 @@ public:
     { 3, "tag-3" } };
 
 public:
-  auto  Add( const StrView& tag ) -> FieldOptions* override
+  auto  Add( const std::string_view& tag ) -> FieldOptions* override
   {
     for ( auto& next: tags )
       if ( tag == next.name )
         return &next;
     return nullptr;
   }
-  auto  Get( const StrView& tag ) const -> const FieldOptions* override
+  auto  Get( const std::string_view& tag ) const -> const FieldOptions* override
   {
     for ( auto& next: tags )
       if ( tag == next.name )
@@ -84,9 +83,9 @@ TestItEasy::RegisterFunc  test_quote( []()
   TEST_CASE( "enquote/quote" )
   {
     FdMan fd_man;
-    auto  inText = textAPI::Document();
+    auto  inText = DeliriX::Text();
 
-    textAPI::CopyUtf16( &inText, textAPI::Document{
+    DeliriX::CopyUtf16( &inText, DeliriX::Text{
       "Первая строка текста: просто строка,",
       "вторая строка в новом абзаце",
       { "tag-1", {
@@ -99,15 +98,15 @@ TestItEasy::RegisterFunc  test_quote( []()
     auto  quoter = DelphiX::enquote::QuoteMachine( fd_man )
       .SetIndent( { { 2, 4 }, { 2, 4 } } );
 
-    auto  Quoter = [&]( const queries::Abstract& quotes = {} ) -> textAPI::Document
+    auto  Quoter = [&]( const queries::Abstract& quotes = {} ) -> DeliriX::Text
       {
-        auto  output = textAPI::Document();
+        auto  output = DeliriX::Text();
           quoter.Structured()( &output, packed.first, packed.second, quotes );
         return output;
       };
-    auto  Source = [&]( const queries::Abstract& quotes = {} ) -> textAPI::Document
+    auto  Source = [&]( const queries::Abstract& quotes = {} ) -> DeliriX::Text
       {
-        auto  output = textAPI::Document();
+        auto  output = DeliriX::Text();
           quoter.TextSource()( &output, packed.first, packed.second, quotes );
         return output;
       };
@@ -144,7 +143,7 @@ TestItEasy::RegisterFunc  test_quote( []()
     SECTION( "image text may be quoted" )
     {
       auto  membuf = mtc::Arena();
-      auto  quoted = textAPI::Document();
+      auto  quoted = DeliriX::Text();
 
       SECTION( "without markup it is empty document" )
       {
@@ -161,7 +160,7 @@ TestItEasy::RegisterFunc  test_quote( []()
         if ( REQUIRE( quoted.GetBlocks().size() == 1 ) )
           REQUIRE( UTF8( quoted.GetBlocks().front().GetWideStr() ) == "Текст, что надо всегда цитировать" );
         if ( REQUIRE( quoted.GetMarkup().size() == 1 ) )
-          REQUIRE( std::string_view( quoted.GetMarkup().front().format ) == "tag-3" );
+          REQUIRE( std::string_view( quoted.GetMarkup().front().tagKey ) == "tag-3" );
 
         fd_man.tags[2].options &= ~FieldOptions::ofEnforceQuote;
       }
@@ -178,7 +177,7 @@ TestItEasy::RegisterFunc  test_quote( []()
           || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "Первая \x7строка\x8 \x7текста\x8: просто строка," )
           || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "\x7Строка\x8 \x7внутри\x8 тега" ) )
         {
-          quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+          quoted.Serialize( DeliriX::dump_as::Json( DeliriX::dump_as::MakeOutput( stdout ) ) );
         }
 
         SECTION( "always-quoted field will present always" )
@@ -193,7 +192,7 @@ TestItEasy::RegisterFunc  test_quote( []()
             || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "\x7Строка\x8 \x7внутри\x8 тега" )
             || !REQUIRE( UTF8( quoted.GetBlocks()[2].GetWideStr() ) == "Текст, что надо всегда цитировать" ) )
           {
-            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+            quoted.Serialize( DeliriX::dump_as::Json( DeliriX::dump_as::MakeOutput( stdout ) ) );
           }
 
           fd_man.tags[2].options &= ~FieldOptions::ofEnforceQuote;
@@ -210,7 +209,7 @@ TestItEasy::RegisterFunc  test_quote( []()
             || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "… строка очень длинная и \x7состоит\x8 из множества разных слов…" )
             || !REQUIRE( UTF8( quoted.GetBlocks()[1].GetWideStr() ) == "… для проявления многоточий в \x7цитировании\x8" ) )
           {
-            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+            quoted.Serialize( DeliriX::dump_as::Json( DeliriX::dump_as::MakeOutput( stdout ) ) );
           }
         }
         SECTION( "multiple events in one block are supported" )
@@ -224,7 +223,7 @@ TestItEasy::RegisterFunc  test_quote( []()
           if ( !REQUIRE( quoted.GetBlocks().size() == 1 )
             || !REQUIRE( UTF8( quoted.GetBlocks()[0].GetWideStr() ) == "… и состоит из множества \x7разных\x8 слов и букв для проявления \x7многоточий\x8 в цитировании" ) )
           {
-            quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+            quoted.Serialize( DeliriX::dump_as::Json( DeliriX::dump_as::MakeOutput( stdout ) ) );
           }
         }
       }
@@ -233,7 +232,7 @@ TestItEasy::RegisterFunc  test_quote( []()
       {
         quoted = Quoter( {} );
 
-        quoted.Serialize( textAPI::dump_as::Json( textAPI::dump_as::MakeOutput( stdout ) ) );
+        quoted.Serialize( DeliriX::dump_as::Json( DeliriX::dump_as::MakeOutput( stdout ) ) );
       }
     }
   }

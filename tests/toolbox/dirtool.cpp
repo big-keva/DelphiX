@@ -1,6 +1,10 @@
 # include "dirtool.h"
 # include <mtc/directory.h>
-# include <io.h>
+# if defined( _MSC_VER )
+#   include <io.h>
+# else
+#   include <unistd.h>
+# endif
 
 void  RemoveFiles( const char* path )
 {

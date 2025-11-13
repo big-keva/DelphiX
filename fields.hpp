@@ -1,6 +1,6 @@
 # if !defined( __DelphiX_fields_hpp__ )
 # define __DelphiX_fields_hpp__
-# include "slices.hpp"
+# include <string_view>
 
 namespace DelphiX {
 
@@ -21,19 +21,19 @@ namespace DelphiX {
       ofEnforceQuote = 0x00040000
     };
 
-    unsigned    id;
-    StrView     name;
-    double      weight = 1.0;
-    unsigned    options = 0;
-    indentation indents = default_indents;
+    unsigned          id;
+    std::string_view  name;
+    double            weight = 1.0;
+    unsigned          options = 0;
+    indentation       indents = default_indents;
 
     static constexpr indentation default_indents = { { 2, 8 }, { 2, 8 } };
   };
 
   struct FieldHandler
   {
-    virtual auto  Add( const StrView& ) ->             FieldOptions* = 0;
-    virtual auto  Get( const StrView& ) const -> const FieldOptions* = 0;
+    virtual auto  Add( const std::string_view& ) ->             FieldOptions* = 0;
+    virtual auto  Get( const std::string_view& ) const -> const FieldOptions* = 0;
     virtual auto  Get( unsigned       ) const -> const FieldOptions* = 0;
   };
 

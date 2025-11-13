@@ -73,13 +73,7 @@ add_library(DelphiX
 	src/storage/posix-fs-serial.cpp
 	src/storage/posix-fs-storage.cpp
 	src/storage/posix-fs-policies.cpp
-	src/storage/posix-fs-dump-store.cpp
-
-	src/textAPI/dump-as-json.cpp
-	src/textAPI/dump-as-tags.cpp
-	src/textAPI/load-as-json.cpp
-	src/textAPI/load-as-tags.cpp
-	src/textAPI/text-toolkit.cpp)
+	src/storage/posix-fs-dump-store.cpp)
 
 # target_include_directories(DelphiX PUBLIC
 #		${CMAKE_CURRENT_SOURCE_DIR}
