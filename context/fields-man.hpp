@@ -17,9 +17,9 @@ namespace context {
     friend  mtc::array_zmap SaveFields( const FieldManager& fields );
 
   public:
-    auto  Add( const StrView& )       ->       FieldOptions* override;
-    auto  Get( const StrView& ) const -> const FieldOptions* override;
-    auto  Get( unsigned       ) const -> const FieldOptions* override;
+    auto  Add( const std::string_view& )       ->       FieldOptions* override;
+    auto  Get( const std::string_view& ) const -> const FieldOptions* override;
+    auto  Get( unsigned                ) const -> const FieldOptions* override;
   };
 
   auto  LoadFields( const mtc::zmap&, const mtc::zmap::key& ) -> FieldManager;     // throws invalid_argument

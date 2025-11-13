@@ -8,14 +8,14 @@ namespace DelphiX {
 namespace context {
 
   auto  GetMiniContents(
-    const Slice<const Slice<const Lexeme>>&,
-    const Slice<const textAPI::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
+    const mtc::span<const mtc::span<const Lexeme>>&,
+    const mtc::span<const DeliriX::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
   auto  GetBM25Contents(
-    const Slice<const Slice<const Lexeme>>&,
-    const Slice<const textAPI::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
+    const mtc::span<const mtc::span<const Lexeme>>&,
+    const mtc::span<const DeliriX::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
   auto  GetRichContents(
-    const Slice<const Slice<const Lexeme>>&,
-    const Slice<const textAPI::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
+    const mtc::span<const mtc::span<const Lexeme>>&,
+    const mtc::span<const DeliriX::MarkupTag>&, FieldHandler& ) -> mtc::api<IContents>;
 
 }}
 

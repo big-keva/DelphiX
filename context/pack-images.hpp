@@ -1,7 +1,6 @@
 # if !defined( __DelphiX_context_pack_images_hpp__ )
 # define __DelphiX_context_pack_images_hpp__
 # include "../context/text-image.hpp"
-# include "../slices.hpp"
 # include <mtc/iStream.h>
 # include <functional>
 
@@ -9,20 +8,20 @@ namespace DelphiX {
 namespace context {
 namespace imaging {
 
-  void  Pack( std::function<void(const void*, size_t)>, const Slice<const textAPI::TextToken>& );
-  void  Pack( mtc::IByteStream*, const Slice<const textAPI::TextToken>& );
-  auto  Pack( const Slice<const textAPI::TextToken>& ) -> std::vector<char>;
+  void  Pack( std::function<void(const void*, size_t)>, const mtc::span<const TextToken>& );
+  void  Pack( mtc::IByteStream*, const mtc::span<const TextToken>& );
+  auto  Pack( const mtc::span<const TextToken>& ) -> std::vector<char>;
 
   void  Unpack(
-    std::function<void(unsigned, const Slice<const widechar>&)> addstr,
-    std::function<void(unsigned, unsigned)>                     addref,
-    const Slice<const char>& );
+    std::function<void(unsigned, const mtc::span<const widechar>&)> addstr,
+    std::function<void(unsigned, unsigned)>                         addref,
+    const mtc::span<const char>& );
 
   template <class Allocator>
-  auto  Unpack( context::BaseImage<Allocator>& image, 
-    const Slice<const char>& input ) -> context::BaseImage<Allocator>&
+  auto  Unpack( BaseImage<Allocator>& image,
+    const mtc::span<const char>& input ) -> context::BaseImage<Allocator>&
   {
-    Unpack( [&]( unsigned uflags, const Slice<const widechar>& inp )
+    Unpack( [&]( unsigned uflags, const mtc::span<const widechar>& inp )
       {
         image.GetTokens().push_back( { uflags, image.AddBuffer( inp.data(), inp.size() ),
           unsigned(image.GetTokens().size()), unsigned(inp.size()) } );
@@ -36,7 +35,7 @@ namespace imaging {
       }, input );
     return image;
   }
-  auto  Unpack( const Slice<const char>& ) -> context::Image;
+  auto  Unpack( const mtc::span<const char>& ) -> context::Image;
 
 }}}
 

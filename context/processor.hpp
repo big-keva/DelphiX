@@ -1,10 +1,11 @@
 # if !defined( __DelphiX_context_processor_hpp__ )
 # define __DelphiX_context_processor_hpp__
 # include "../lang-api.hpp"
-# include "../textAPI/DOM-text.hpp"
+# include "DeliriX/DOM-text.hpp"
 # include "text-image.hpp"
 # include "fields-man.hpp"
 # include <moonycode/chartype.h>
+# include <moonycode/codes.h>
 # include <mtc/arbitrarymap.h>
 
 namespace DelphiX {
@@ -12,6 +13,9 @@ namespace context {
 
   class Processor
   {
+    using MarkupTag = DeliriX::MarkupTag;
+    using ITextView = DeliriX::ITextView;
+
     struct Lemmatizer
     {
       unsigned               langId;
@@ -31,19 +35,19 @@ namespace context {
   template <class Allocator>
     auto  Lemmatize( std::vector<Lexeme, Allocator>&, const widechar*, size_t ) const -> std::vector<Lexeme, Allocator>&;
   template <class Allocator>
-    auto  MakeImage( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+    auto  MakeImage( BaseImage<Allocator>&, const ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
   template <class Allocator>
-    auto  SetMarkup( BaseImage<Allocator>&, const textAPI::ITextView& ) const -> BaseImage<Allocator>&;
+    auto  SetMarkup( BaseImage<Allocator>&, const ITextView& ) const -> BaseImage<Allocator>&;
   template <class Allocator>
-    auto  WordBreak( BaseImage<Allocator>&, const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
+    auto  WordBreak( BaseImage<Allocator>&, const ITextView&, const FieldHandler* = nullptr ) const -> BaseImage<Allocator>&;
 
     auto  Lemmatize( const mtc::widestr& ) const -> std::vector<Lexeme>;
-    auto  MakeImage( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
-    auto  WordBreak( const textAPI::ITextView&, const FieldHandler* = nullptr ) const -> Image;
+    auto  MakeImage( const ITextView&, const FieldHandler* = nullptr ) const -> Image;
+    auto  WordBreak( const ITextView&, const FieldHandler* = nullptr ) const -> Image;
 
   public:
     auto  Initialize( unsigned langId, const mtc::api<ILemmatizer>& ) -> Processor&;
-    auto  Initialize( const Slice<const std::pair<unsigned, const mtc::api<ILemmatizer>>>& ) ->Processor&;
+    auto  Initialize( const mtc::span<const std::pair<unsigned, const mtc::api<ILemmatizer>>>& ) ->Processor&;
 
   protected:
     static  bool  IsPunct( widechar c )
@@ -51,9 +55,8 @@ namespace context {
       return (codepages::charType[c] & 0xf0) == codepages::cat_P
           || (codepages::charType[c] & 0xf0) == codepages::cat_S;
     }
-    void  MapMarkup(
-      const Slice<textAPI::MarkupTag>&,
-      const Slice<const textAPI::TextToken>& ) const;
+    void  MapMarkup( mtc::span<MarkupTag>,
+      const mtc::span<const TextToken>& ) const;
 
   protected:
     std::vector<Lemmatizer>  languages;
@@ -91,13 +94,12 @@ namespace context {
   // Processor template implementation
 
   template <class Allocator>
-  auto  Processor::SetMarkup( BaseImage<Allocator>& image,
-    const textAPI::ITextView& input ) const -> BaseImage<Allocator>&
+  auto  Processor::SetMarkup( BaseImage<Allocator>& image, const ITextView& input ) const -> BaseImage<Allocator>&
   {
     image.markup.insert( image.markup.end(),
       input.GetMarkup().begin(), input.GetMarkup().end() );
 
-    return MapMarkup( image.GetMarkup(), image.GetTokens() ), image;
+    return MapMarkup( { image.markup.data(), image.markup.size() }, image.GetTokens() ), image;
   }
 
   template <class Allocator>
@@ -134,7 +136,7 @@ namespace context {
 
     // register word reference(s)
       for ( auto& i: values )
-        new( &image.lemmas[i] ) Slice<Lexeme>( (Lexeme*)curlen, image.lexbuf.size() - curlen );
+        new( &image.lemmas[i] ) mtc::span<Lexeme>( (Lexeme*)curlen, image.lexbuf.size() - curlen );
     }
 
   // transform indexes to pointers
@@ -166,7 +168,7 @@ namespace context {
   * stores words with context flags, pointer, offset and length to output array
   */
   template <class Allocator>
-  auto  Processor::WordBreak( BaseImage<Allocator>& body, const textAPI::ITextView& input,
+  auto  Processor::WordBreak( BaseImage<Allocator>& body, const ITextView& input,
     const FieldHandler* fdset ) const -> BaseImage<Allocator>&
   {
     std::vector<uint64_t>  nonBrk;
@@ -178,7 +180,7 @@ namespace context {
     if ( fdset != nullptr )
       for ( auto& markup: input.GetMarkup() )
       {
-        auto  pfield = fdset->Get( markup.format );
+        auto  pfield = fdset->Get( markup.tagKey );
 
         if ( pfield != nullptr )
         {
@@ -190,19 +192,22 @@ namespace context {
       }
 
     // list all blocks
-    for ( auto beg = input.GetBlocks().begin(); beg != input.GetBlocks().end(); offset += uint32_t((beg++)->length) )
+    for ( auto beg = input.GetBlocks().begin(); beg != input.GetBlocks().end(); offset += (beg++)->GetTextSize() )
     {
       auto  sblock = beg->GetWideStr();
       auto  buforg = body.AddBuffer( sblock.data(), sblock.size() );
       auto  ptrtop = buforg;
       auto  ptrend = ptrtop + sblock.size();
 
-      for ( unsigned uFlags = textAPI::TextToken::is_first; ptrtop != ptrend; uFlags = 0 )
+      if ( sblock.data() == nullptr )
+        throw std::invalid_argument( "Processor::WordBreak(...) can process only utf16 texts @" __FILE__ ":" LINE_STRING );
+
+      for ( unsigned uFlags = TextToken::is_first; ptrtop != ptrend; uFlags = 0 )
       {
         // detect lower space
         if ( codepages::IsBlank( *ptrtop ) )
         {
-          uFlags |= textAPI::TextToken::lt_space;
+          uFlags |= TextToken::lt_space;
 
           for ( ++ptrtop; ptrtop != ptrend && codepages::IsBlank( *ptrtop ); ++ptrtop )
             (void)NULL;
@@ -223,7 +228,7 @@ namespace context {
           // get substring length
           if ( IsPunct( *ptrtop++ ) )
           {
-            uFlags |= textAPI::TextToken::is_punct;
+            uFlags |= TextToken::is_punct;
           }
             else
           // select next word
@@ -242,7 +247,7 @@ namespace context {
   }
 
   template <class Allocator>
-  auto  Processor::MakeImage( BaseImage<Allocator>& body, const textAPI::ITextView& text,
+  auto  Processor::MakeImage( BaseImage<Allocator>& body, const ITextView& text,
     const FieldHandler* fdset ) const -> BaseImage<Allocator>&
   {
     return SetMarkup( Lemmatize( WordBreak( body, text, fdset ) ), text );

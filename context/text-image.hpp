@@ -1,8 +1,7 @@
 # if !defined( __DelphiX_context_text_image_hpp__ )
 # define __DelphiX_context_text_image_hpp__
 # include "index-keys.hpp"
-# include "../text-api.hpp"
-# include "../slices.hpp"
+# include "DeliriX/text-API.hpp"
 # include "../compat.hpp"
 # include <mtc/bitset.h>
 # include <functional>
@@ -10,6 +9,27 @@
 
 namespace DelphiX {
 namespace context {
+
+  struct TextToken
+  {
+    enum: unsigned
+    {
+      lt_space = 1,
+      is_punct = 2,
+      is_first = 4
+    };
+
+    unsigned        uFlags;
+    const widechar* pwsstr;
+    uint32_t        offset;
+    uint32_t        length;
+
+    auto  GetWideStr() const -> std::basic_string_view<widechar>  {  return { pwsstr, length };  }
+    auto  LeftSpaced() const {  return (uFlags & lt_space) != 0;  }
+    auto  IsPointing() const {  return (uFlags & is_punct) != 0;  }
+    auto  IsFirstOne() const {  return (uFlags & is_first) != 0;  }
+
+  };
 
   class Lexeme: public Key
   {
@@ -95,8 +115,7 @@ namespace context {
   {
     friend class Processor;
 
-    using MarkupTag = textAPI::MarkupTag;
-    using TextToken = textAPI::TextToken;
+    using MarkupTag = DeliriX::MarkupTag;
 
     using MarkupTagAllocator = AllocatorCast<Allocator, MarkupTag>;
     using TextTokenAllocator = AllocatorCast<Allocator, TextToken>;
@@ -109,17 +128,17 @@ namespace context {
   public:
     auto  AddBuffer( const widechar*, size_t ) -> const widechar*;
 
-    auto  GetMarkup() const -> Slice<const MarkupTag>
+    auto  GetMarkup() const -> mtc::span<const MarkupTag>
       {  return markup;  }
-    auto  GetTokens() const -> Slice<const TextToken>
+    auto  GetTokens() const -> mtc::span<const TextToken>
       {  return tokens;  }
-    auto  GetLemmas() const -> Slice<const Slice<const Lexeme>>
-      {  return { (Slice<const Lexeme>*)lemmas.data(), lemmas.size() };  }
+    auto  GetLemmas() const -> mtc::span<const mtc::span<const Lexeme>>
+      {  return { (mtc::span<const Lexeme>*)lemmas.data(), lemmas.size() };  }
 
     auto  GetMarkup() -> std::vector<MarkupTag, MarkupTagAllocator>&  {  return markup;  }
     auto  GetTokens() -> std::vector<TextToken, TextTokenAllocator>&  {  return tokens;  }
 
-    auto  Serialize( textAPI::IText* ) -> textAPI::IText*;
+    auto  Serialize( DeliriX::IText* ) -> DeliriX::IText*;
 
     void  clear();
 
@@ -132,11 +151,11 @@ namespace context {
     template <class C>
     using vector = std::vector<C, rebind<C>>;
 
-    vector<widechar*>           bufbox;
-    vector<MarkupTag>           markup;
-    vector<TextToken>           tokens;
-    vector<Slice<const Lexeme>> lemmas;
-    vector<Lexeme>              lexbuf;
+    vector<widechar*>               bufbox;
+    vector<MarkupTag>               markup;
+    vector<TextToken>               tokens;
+    vector<mtc::span<const Lexeme>> lemmas;
+    vector<Lexeme>                  lexbuf;
 
   };
 
@@ -192,20 +211,20 @@ namespace context {
   }
 
   template <class Allocator>
-  auto  BaseImage<Allocator>::Serialize( textAPI::IText* text ) -> textAPI::IText*
+  auto  BaseImage<Allocator>::Serialize( DeliriX::IText* text ) -> DeliriX::IText*
   {
     auto  lineIt = tokens.begin();
     auto  markIt = markup.begin();
-    auto  fPrint = std::function<void( textAPI::IText*, uint32_t )>();
+    auto  fPrint = std::function<void( DeliriX::IText*, uint32_t )>();
 
-    fPrint = [&]( textAPI::IText* to, uint32_t up )
+    fPrint = [&]( DeliriX::IText* to, uint32_t up )
       {
         while ( lineIt != tokens.end() && lineIt - tokens.begin() <= up )
         {
         // check if print next line to current IText*
           if ( markIt == markup.end() || (lineIt - tokens.begin()) < markIt->uLower )
           {
-            to->AddWideStr( lineIt->pwsstr, lineIt->length );
+            to->AddBlock( lineIt->pwsstr, lineIt->length );
 
             if ( ++lineIt == tokens.end() ) return;
               continue;
@@ -214,7 +233,7 @@ namespace context {
         // check if open new span
           if ( lineIt - tokens.begin() >= markIt->uLower )
           {
-            auto  new_to = to->AddTextTag( markIt->format );
+            auto  new_to = to->AddMarkupTag( markIt->tagKey );
             auto  uUpper = markIt->uUpper;
               ++markIt;
             fPrint( new_to.ptr(), uUpper );
