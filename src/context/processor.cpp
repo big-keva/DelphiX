@@ -3,14 +3,16 @@
 namespace DelphiX {
 namespace context {
 
-  auto  Processor::WordBreak( const textAPI::ITextView& input, const FieldHandler* fdset ) const -> Image
+  using ITextView = DeliriX::ITextView;
+
+  auto  Processor::WordBreak( const ITextView& input, const FieldHandler* fdset ) const -> Image
   {
     Image   image;
 
     return std::move( WordBreak( image, input, fdset ) );
   }
 
-  auto  Processor::MakeImage( const textAPI::ITextView& input, const FieldHandler* fdset ) const -> Image
+  auto  Processor::MakeImage( const ITextView& input, const FieldHandler* fdset ) const -> Image
   {
     Image   image;
 
@@ -30,19 +32,17 @@ namespace context {
     return *this;
   }
 
-  auto  Processor::Initialize( const Slice<const std::pair<unsigned, const mtc::api<ILemmatizer>>>& init ) ->Processor&
+  auto  Processor::Initialize( const mtc::span<const std::pair<unsigned, const mtc::api<ILemmatizer>>>& init ) ->Processor&
   {
     for ( auto& next: init )
       languages.push_back( { next.first, next.second } );
     return *this;
   }
 
-  void  Processor::MapMarkup(
-    const Slice<textAPI::MarkupTag>&        markup,
-    const Slice<const textAPI::TextToken>&  tokens ) const
+  void  Processor::MapMarkup( mtc::span<MarkupTag> markup, const mtc::span<const TextToken>&  tokens ) const
   {
-    auto  fwdFmt = std::vector<textAPI::MarkupTag*>();
-    auto  bckFmt = std::vector<textAPI::MarkupTag*>();
+    auto  fwdFmt = std::vector<MarkupTag*>();
+    auto  bckFmt = std::vector<MarkupTag*>();
 
     // create formats indices
     for ( auto beg = markup.begin(); beg != markup.end(); ++beg )
@@ -50,7 +50,7 @@ namespace context {
       fwdFmt.push_back( beg );
       bckFmt.push_back( beg );
     }
-    std::sort( bckFmt.begin(), bckFmt.end(), []( textAPI::MarkupTag* a, textAPI::MarkupTag* b )
+    std::sort( bckFmt.begin(), bckFmt.end(), []( MarkupTag* a, MarkupTag* b )
       {  return a->uUpper < b->uUpper;  } );
 
     // open and close the items

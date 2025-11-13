@@ -18,19 +18,19 @@ namespace formats {
 
   template <class Allocator = std::allocator<char>>
   class Compressor: protected std::vector<Compressor<Allocator>, AllocatorCast<Allocator, Compressor<Allocator>>>,
-    public textAPI::FormatTag<unsigned>
+    public RankerTag
   {
   public:
     Compressor( Allocator mem = Allocator() ): std::vector<Compressor, AllocatorCast<Allocator, Compressor>>( mem ),
-      FormatTag{ 0, 0, 0 } {}
-    Compressor( const FormatTag& tag, Allocator mem = Allocator() ): std::vector<Compressor, AllocatorCast<Allocator, Compressor>>( mem ),
-      FormatTag( tag )  {}
+      RankerTag{ 0, 0, 0 } {}
+    Compressor( const RankerTag& tag, Allocator mem = Allocator() ): std::vector<Compressor, AllocatorCast<Allocator, Compressor>>( mem ),
+      RankerTag( tag )  {}
 
-    using entry_type = FormatTag;
+    using entry_type = RankerTag;
 
   public:
-    void  AddMarkup( const FormatTag& );
-    auto  SetMarkup( const Slice<const FormatTag>& ) -> Compressor&;
+    void  AddMarkup( const RankerTag& );
+    auto  SetMarkup( const mtc::span<const RankerTag>& ) -> Compressor&;
     auto  GetBufLen() const -> size_t;
     template <class O>
     auto  Serialize( O* ) const -> O*;
@@ -39,19 +39,19 @@ namespace formats {
   // Pack formats funcs
 
   template <class O>
-  void  Pack( O* o, const Slice<const FormatTag<unsigned>>& in )
+  void  Pack( O* o, const mtc::span<const RankerTag>& in )
   {
     Compressor().SetMarkup( in ).Serialize( o );
   }
 
   template <class O>
-  void  Pack( O* o, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+  void  Pack( O* o, const mtc::span<const MarkupTag>& in, FieldHandler& fh )
   {
     Compressor  compressor;
 
     for ( auto& ft: in )
     {
-      auto  pf = fh.Add( ft.format );
+      auto  pf = fh.Add( ft.tagKey );
 
       if ( pf != nullptr )
         compressor.AddMarkup( { pf->id, ft.uLower, ft.uUpper } );
@@ -59,23 +59,23 @@ namespace formats {
     compressor.Serialize( o );
   }
 
-  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const FormatTag<unsigned>>& in )
+  void  Pack( std::function<void(const void*, size_t)> fn, const mtc::span<const RankerTag>& in )
     {  return Pack<SerialFn>( &fn, in );  }
-  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+  void  Pack( std::function<void(const void*, size_t)> fn, const mtc::span<const MarkupTag>& in, FieldHandler& fh )
     {  return Pack<SerialFn>( &fn, in, fh );  }
-  void  Pack( mtc::IByteStream* ps, const Slice<const FormatTag<unsigned>>& in )
+  void  Pack( mtc::IByteStream* ps, const mtc::span<const RankerTag>& in )
     {  return Pack<mtc::IByteStream>( ps, in );  }
-  void  Pack( mtc::IByteStream* ps, const Slice<const FormatTag<const char*>>& in, FieldHandler& fh )
+  void  Pack( mtc::IByteStream* ps, const mtc::span<const DeliriX::MarkupTag>& in, FieldHandler& fh )
     {  return Pack<mtc::IByteStream>( ps, in, fh );  }
 
-  auto  Pack( const Slice<const FormatTag<unsigned>>& in ) -> std::vector<char>
+  auto  Pack( const mtc::span<const RankerTag>& in ) -> std::vector<char>
   {
     std::vector<char> out;
 
     return Pack( &out, in ), out;
   }
 
-  auto  Pack( const Slice<const FormatTag<const char*>>& in, FieldHandler& fh ) -> std::vector<char>
+  auto  Pack( const mtc::span<const DeliriX::MarkupTag>& in, FieldHandler& fh ) -> std::vector<char>
   {
     std::vector<char> out;
 
@@ -114,11 +114,11 @@ namespace formats {
 
   inline
   auto  Unpack(
-    textAPI::FormatTag<unsigned>* tbeg,
-    textAPI::FormatTag<unsigned>* tend,
-    const char*&                  pbeg,
-    const char*                   pend,
-    unsigned                      base = 0 ) -> size_t
+    RankerTag*    tbeg,
+    RankerTag*    tend,
+    const char*&  pbeg,
+    const char*   pend,
+    unsigned      base = 0 ) -> size_t
   {
     auto  torg( tbeg );
     int   size;
@@ -147,24 +147,24 @@ namespace formats {
   }
 
   auto  Unpack(
-    FormatTag<unsigned>*  tbeg, FormatTag<unsigned>*  tend,
-    const char*           pbeg, const char*           pend ) -> size_t
+    RankerTag*  tbeg, RankerTag*  tend,
+    const char* pbeg, const char* pend ) -> size_t
   {
     return Unpack( tbeg, tend, pbeg, pend, 0 );
   }
 
-  auto  Unpack( const Slice<const char>& pack ) -> std::vector<FormatTag<unsigned>>
+  auto  Unpack( const mtc::span<const char>& pack ) -> std::vector<RankerTag>
   {
-    auto  vout = std::vector<FormatTag<unsigned>>();
+    auto  vout = std::vector<RankerTag>();
     auto  sptr = pack.data();
 
-    Unpack( [&]( const FormatTag<unsigned>& tag )
+    Unpack( [&]( const RankerTag& tag )
       {  vout.push_back( tag );  }, sptr, pack.end(), 0 );
 
     return vout;
   }
 
-  void  Unpack( std::function<void( const FormatTag<unsigned>& )> fAdd, const char* pbeg, const char* pend )
+  void  Unpack( std::function<void( const RankerTag& )> fAdd, const char* pbeg, const char* pend )
   {
     return Unpack( fAdd, pbeg, pend, 0 );
   }
@@ -172,7 +172,7 @@ namespace formats {
   // Compressor implementation
 
   template <class Allocator>
-  void  Compressor<Allocator>::AddMarkup( const FormatTag& tag )
+  void  Compressor<Allocator>::AddMarkup( const RankerTag& tag )
   {
     if ( this->empty() || tag.uLower > this->back().uUpper )
       return (void)this->emplace_back( tag, this->get_allocator() );
@@ -182,7 +182,7 @@ namespace formats {
   }
 
   template <class Allocator>
-  auto  Compressor<Allocator>::SetMarkup( const Slice<const FormatTag>& tags ) -> Compressor&
+  auto  Compressor<Allocator>::SetMarkup( const mtc::span<const RankerTag>& tags ) -> Compressor&
   {
     for ( auto& tag: tags )
       AddMarkup( tag );

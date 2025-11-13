@@ -1,7 +1,6 @@
 # if !defined( __DelphiX_enquote_quotations_hpp__ )
 # define __DelphiX_enquote_quotations_hpp__
-# include "../text-api.hpp"
-# include "../slices.hpp"
+# include "DeliriX/text-API.hpp"
 # include "../fields.hpp"
 # include "../queries.hpp"
 # include <functional>
@@ -9,10 +8,9 @@
 namespace DelphiX {
 namespace enquote {
 
-  using QuotesFunc = std::function<void(
-    textAPI::IText*,
-    const Slice<const char>&,
-    const Slice<const char>&,
+  using QuotesFunc = std::function<void( DeliriX::IText*,
+    const mtc::span<const char>&,
+    const mtc::span<const char>&,
     const queries::Abstract&)>;
 
   class QuoteMachine

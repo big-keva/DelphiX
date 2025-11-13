@@ -25,7 +25,7 @@ namespace context {
     map_type                    strmap;
   };
 
-  auto  FieldManager::Add( const StrView& name ) -> FieldOptions*
+  auto  FieldManager::Add( const std::string_view& name ) -> FieldOptions*
   {
     impl::map_type::iterator  pfound;
 
@@ -43,7 +43,7 @@ namespace context {
     return &data->fields.at( pfound->second );
   }
 
-  auto  FieldManager::Get( const StrView& name ) const -> const FieldOptions*
+  auto  FieldManager::Get( const std::string_view& name ) const -> const FieldOptions*
   {
     if ( data != nullptr )
     {

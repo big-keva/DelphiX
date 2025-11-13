@@ -50,7 +50,7 @@ namespace context {
 
     template <class Compressor>
     void  AddEntry( const Key&, const typename Compressor::entry_type& );
-    auto  SetBlock( const Key&, unsigned type, size_t size ) -> Slice<char>;
+    auto  SetBlock( const Key&, unsigned type, size_t size ) -> mtc::span<char>;
 
   public:      // overridables from IContents
     void  Enum( IContentsIndex::IIndexAPI* ) const override;
@@ -165,7 +165,7 @@ namespace context {
       return new( palloc ) DataHolder( type, size );
     }
 
-    auto  GetBuffer() -> Slice<char>                    {  return { buffer, length };  }
+    auto  GetBuffer() -> mtc::span<char>                {  return { buffer, length };  }
     auto  BlockType() const -> unsigned override        {  return bkType;  }
     auto  GetBufLen() const -> size_t override          {  return length;  }
     auto  Serialize( char* o ) const -> char* override  {  return ::Serialize( o, buffer, length );  }
@@ -191,7 +191,7 @@ namespace context {
     return ((Compressor*)(*pblock))->AddRecord( ent );
   }
 
-  auto  Contents::SetBlock( const Key& key, unsigned type, size_t size ) -> Slice<char>
+  auto  Contents::SetBlock( const Key& key, unsigned type, size_t size ) -> mtc::span<char>
   {
     auto  pblock = keyToPos->Search( key.data(), key.size() );
 
@@ -252,8 +252,8 @@ namespace context {
   // Context creation functions
 
   auto  GetMiniContents(
-    const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup, FieldHandler& ) -> mtc::api<IContents>
+    const mtc::span<const mtc::span<const Lexeme>>& lemm,
+    const mtc::span<const DeliriX::MarkupTag>&      mkup, FieldHandler& ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api<Contents>( new Contents() );
 
@@ -265,8 +265,8 @@ namespace context {
   }
 
   auto  GetBM25Contents(
-    const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup, FieldHandler& ) -> mtc::api<IContents>
+    const mtc::span<const mtc::span<const Lexeme>>& lemm,
+    const mtc::span<const DeliriX::MarkupTag>&      mkup, FieldHandler& ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api<Contents>( new Contents() );
 
@@ -278,9 +278,8 @@ namespace context {
   }
 
   auto  GetRichContents(
-    const Slice<const Slice<const Lexeme>>& lemm,
-    const Slice<const textAPI::MarkupTag>&  mkup,
-    FieldHandler&                           fman ) -> mtc::api<IContents>
+    const mtc::span<const mtc::span<const Lexeme>>& lemm,
+    const mtc::span<const DeliriX::MarkupTag>&      mkup, FieldHandler& fman ) -> mtc::api<IContents>
   {
     auto  contents = mtc::api( new Contents() );
     auto  tag_pack = formats::Pack( mkup, fman );
@@ -293,7 +292,7 @@ namespace context {
 
     for ( auto& next: mkup )
     {
-      auto  pfinfo = fman.Get( next.format );
+      auto  pfinfo = fman.Get( next.tagKey );
 
       if ( pfinfo != nullptr )
       {

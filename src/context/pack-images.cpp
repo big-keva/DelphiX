@@ -1,4 +1,5 @@
 # include "../../context/pack-images.hpp"
+# include <moonycode/codes.h>
 # include <mtc/arbitrarymap.h>
 # include <functional>
 
@@ -44,7 +45,7 @@ namespace imaging {
     };
 
     template <class O>
-    auto  EncodeWord( O* o, const textAPI::TextToken& t, unsigned p ) -> O*
+    auto  EncodeWord( O* o, const TextToken& t, unsigned p ) -> O*
     {
       auto  puprev = references.Search( t.pwsstr, t.length * sizeof(widechar) );
 
@@ -86,25 +87,25 @@ namespace imaging {
     }
 
   protected:
-    static  bool  Is1251( const textAPI::TextToken& t )
+    static  bool  Is1251( const TextToken& t )
       {
         for ( auto p = t.pwsstr, e = p + t.length; p != e; ++p )
           if ( codepages::xlatWinToUtf16[codepages::xlatUtf16ToWin[*p >> 8][*p & 0xff]] != *p )
             return false;
         return true;
       }
-    static  auto  As1251( const textAPI::TextToken& t ) -> unsigned
+    static  auto  As1251( const TextToken& t ) -> unsigned
       {  return unsigned(t.uFlags + ((t.length - 1) << 5));  }
-    static  auto  AsUtf8( const textAPI::TextToken& t ) -> unsigned
+    static  auto  AsUtf8( const TextToken& t ) -> unsigned
       {  return unsigned(t.uFlags + ((codepages::utf8::cbchar( t.pwsstr, t.length ) - 1) << 5) + of_utf8str);  }
-    static  auto  AsDiff( const textAPI::TextToken& t, unsigned diff ) -> unsigned
+    static  auto  AsDiff( const TextToken& t, unsigned diff ) -> unsigned
       {  return unsigned(t.uFlags + ((diff - 1) << 5) + of_diffref);  }
-    static  auto  AsOffs( const textAPI::TextToken& t, unsigned next ) -> unsigned
+    static  auto  AsOffs( const TextToken& t, unsigned next ) -> unsigned
       {  return unsigned(t.uFlags + ((next - 1) << 5) + of_backref);  }
   };
 
   template <class O>
-  void  PackTo( O* o, const Slice<const textAPI::TextToken>& words )
+  void  PackTo( O* o, const mtc::span<const TextToken>& words )
   {
     WordsEncoder      wcoder;
 
@@ -114,27 +115,27 @@ namespace imaging {
       wcoder.EncodeWord( o, words[pos], pos );
   }
 
-  auto  Pack( const Slice<const textAPI::TextToken>& words ) -> std::vector<char>
+  auto  Pack( const mtc::span<const TextToken>& words ) -> std::vector<char>
   {
     std::vector<char> packed;
       PackTo( &packed, words );
     return packed;
   }
 
-  void  Pack( mtc::IByteStream* o, const Slice<const textAPI::TextToken>& words )
+  void  Pack( mtc::IByteStream* o, const mtc::span<const TextToken>& words )
   {
     return PackTo( o, words );
   }
 
-  void  Pack( std::function<void(const void*, size_t)> fn, const Slice<const textAPI::TextToken>& words )
+  void  Pack( std::function<void(const void*, size_t)> fn, const mtc::span<const TextToken>& words )
   {
     return PackTo( &fn, words );
   }
 
   void  Unpack(
-    std::function<void(unsigned, const Slice<const widechar>&)> addstr,
-    std::function<void(unsigned, unsigned)>                     addref,
-    const Slice<const char>&                                    packed )
+    std::function<void(unsigned, const mtc::span<const widechar>&)> addstr,
+    std::function<void(unsigned, unsigned)>                         addref,
+    const mtc::span<const char>&                                    packed )
   {
     auto  src = mtc::sourcebuf( packed.data(), packed.size() );
     auto  inp = src.ptr();
@@ -194,12 +195,12 @@ namespace imaging {
     }
   }
 
-  auto  Unpack( const Slice<const char>& packed ) -> context::Image
+  auto  Unpack( const mtc::span<const char>& packed ) -> context::Image
   {
     auto  body = context::Image();
 
     Unpack(
-      [&]( unsigned uflags, const Slice<const widechar>& inp )
+      [&]( unsigned uflags, const mtc::span<const widechar>& inp )
       {
         body.GetTokens().push_back( {
           uflags,
