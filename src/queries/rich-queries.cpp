@@ -1098,14 +1098,10 @@ namespace queries {
     auto  pstats = zstat.get_zmap( str );
     auto  prange = pstats != nullptr ? pstats->get_double( "range" ) : nullptr;
 
-    if ( prange != nullptr )
-      return *prange;
-
     if ( pstats == nullptr )
       return -1.0;
 
-    throw std::invalid_argument( total == 0 ?
-      "terms do not have 'total' index document count" : "invalid 'terms' format" );
+    return prange != nullptr ? *prange : -1.0;
   }
 
   auto  RichBuilder::GetTermIdf( const context::Key& key ) const -> double
